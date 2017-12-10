@@ -1,0 +1,20 @@
+---
+- service:
+    name: py-static-web
+    cmd: python -m SimpleHTTPServer
+
+- env:
+    foo: bar
+    baz: '`cat baz.json | jq -r .baz`'
+
+- envscript: 'curl http://httpbin.org/ip'
+
+- task:
+    name: apt
+    cmd: 'echo "apt get updating..."'
+    dir: '/tmp'
+
+- watch:
+    file: /etc/cert/foo
+    action:
+      restart: py-static-web
