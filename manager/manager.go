@@ -7,11 +7,12 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/process"
+	"github.com/ionrock/xenv/util"
 )
 
 type Manager struct {
 	// processes is a map with our processes
-	Processes map[string]*exec.Cmd
+	ProcessMap map[string]*exec.Cmd
 
 	// Output provides a prefix formatter for logging
 	Output *process.Output
@@ -24,13 +25,13 @@ type Manager struct {
 
 func New(of *process.Output) *Manager {
 	return &Manager{
-		Processes: make(map[string]*exec.Cmd),
-		Output:    of,
+		ProcessMap: make(map[string]*exec.Cmd),
+		Output:     of,
 	}
 }
 
 func (m *Manager) Processes() map[string]*exec.Cmd {
-	return m.Processes
+	return m.ProcessMap
 }
 
 func (m *Manager) Start(name, command, dir string, env []string, of *process.Output) error {
@@ -38,7 +39,7 @@ func (m *Manager) Start(name, command, dir string, env []string, of *process.Out
 		of = m.Output
 	}
 
-	parts := SplitCommand(command)
+	parts := util.SplitCommand(command)
 
 	var ps *exec.Cmd
 	if len(parts) == 1 {
@@ -103,13 +104,13 @@ func (m *Manager) Start(name, command, dir string, env []string, of *process.Out
 		}
 	}()
 
-	m.Processes[name] = ps
+	m.ProcessMap[name] = ps
 
 	return nil
 }
 
 func (m *Manager) Stop(name string) error {
-	svc, ok := m.Processes[name]
+	svc, ok := m.ProcessMap[name]
 	if !ok {
 		// should probably still throw an error here...
 		return nil

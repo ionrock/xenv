@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+
+	"github.com/ionrock/xenv/util"
 )
 
 type Process struct {
@@ -14,14 +16,16 @@ type Process struct {
 	pipesWait *sync.WaitGroup
 }
 
-func New(command string) *Process {
+func New(command string, dir string) *Process {
 	var cmd *exec.Cmd
-	parts := SplitCommand(command)
+	parts := util.SplitCommand(command)
 	if len(parts) == 0 {
 		cmd = exec.Command(parts[0])
 	} else {
 		cmd = exec.Command(parts[0], parts[1:]...)
 	}
+
+	cmd.Dir = dir
 
 	return &Process{
 		Cmd:       cmd,

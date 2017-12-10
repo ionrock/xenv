@@ -61,7 +61,7 @@ func (e *Environment) StartService(name, cmd, dir string) error {
 
 func (e *Environment) SetEnv(k, v string) error {
 	v = os.Expand(v, e.Config.GetConfig)
-	val, err := process.CompileValue(v, e.ConfigDir)
+	val, err := CompileValue(v, e.ConfigDir)
 	if err != nil {
 		fmt.Printf("error getting value for env: %q %q\n", v, err)
 		return err
@@ -85,9 +85,9 @@ func (e *Environment) RunTask(name, cmd, dir string) error {
 	fmt.Println("Running Task: " + name)
 
 	// TODO: Use some better logging here.
-	out, err := proc.Execute()
-	fmt.Println(out.String())
+	err := proc.Run()
 	if err != nil {
+		fmt.Println(proc.Output.String())
 		fmt.Printf("Error: %s\n", err)
 		return err
 	}

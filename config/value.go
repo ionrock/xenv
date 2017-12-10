@@ -6,7 +6,8 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 
-	"github.com/iornock/xenv/util"
+	"github.com/ionrock/xenv/process"
+	"github.com/ionrock/xenv/util"
 )
 
 func CompileValue(value string, path string) (string, error) {
@@ -21,10 +22,7 @@ func CompileValue(value string, path string) (string, error) {
 		return "", err
 	}
 
-	proc := Process{
-		Cmd: strings.Trim(value, "`"),
-		Dir: dirname,
-	}
+	proc := process.NewScript(strings.Trim(value, "`"), dirname)
 
 	buf, err := proc.Execute()
 	if err != nil {

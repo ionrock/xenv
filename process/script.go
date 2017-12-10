@@ -16,7 +16,7 @@ type Script struct {
 	Dir string
 }
 
-func New(cmd string, dir string) *Script {
+func NewScript(cmd string, dir string) *Script {
 	return &Script{cmd, dir}
 }
 
