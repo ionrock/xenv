@@ -1,4 +1,4 @@
-= xenv
+# xenv
 
 Xenv provides an executable environment for managing a process at
 runtime. Whether that is managing environment variables, starting
@@ -6,7 +6,7 @@ sidecar / helper processes or performing small pre/post tasks, `xenv`
 makes it possible to encapsulate complexity found in configuration
 management, init systems and orchestration systems.
 
-== Usage
+## Usage
 
 The essence of `xenv` is the configuration file. It is a simple list
 of entries that happen one after another.
