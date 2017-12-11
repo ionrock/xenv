@@ -37,47 +37,40 @@ or a provisioned host.
 Here is an example:
 ```
 ---
-- task:
-    name: load-mesh
-	cmd: apt-get install -y nginx myorg-mesh-config
 
+# Start a nginx process for TLS termination
 - service:
     name: nginx
-    cmd: /usr/local/bin/myorg-start-nginx
+    cmd: nginx
 
+
+# Set up some environment variables. This structure is flattened using `_` between levels.
 - env:
+	# Set a single value
     foo: bar
+
+	# Set a value to the result of a script. This doesn't use a shell!
     baz: '`cat baz.json | jq -r .baz`'
 
+# Gather more environment data using a script that outputs JSON or YAML
 - envscript: 'curl http://httpbin.org/ip'
 
+# We can use the environment and write templates using Go's template
+# syntax. This format is similar to consul-template.
 - template: 'foo.conf.tmpl:/etc/foo.conf'
 
+# You can also be explicit
 - template:
     source: foo.conf.tmpl
 	dest: /etc/foo.conf
 
+# Use the the run command to call the command. You can also use `--`
+# and then add the command to the `xenv` call like `xenv --config env.yml -- mysvc start`
 - run_command
 
+# We can run commands after the process exits such as cleaning up
+# secret files or unregistering from service discovery.
 - task:
-    name: apt
-    cmd: 'echo "apt get updating..."'
-    dir: '/tmp'
-
-- watch:
-    file: /etc/cert/foo
-    action:
-      restart: py-static-web
+  name: remove-config
+  cmd: rm /etc/foo.conf
 ```
-
-There are two main elments that are at working.
-
-  1. Configuration data composition.
-  2. Process and task management.
-
-The configuration data can be composed using the `env` and `envscript`
-fields. These allow for you to build an environment that can be used
-as-is or in by writing configuration files.
-
-The process management allows you use processes as sidecars or helpers
-to prepare the process to run.
