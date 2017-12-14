@@ -6,7 +6,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"github.com/ionrock/we/flat"
-	"github.com/ionrock/we/process"
+	"github.com/ionrock/xenv/process"
 )
 
 type Script struct {
@@ -15,7 +15,7 @@ type Script struct {
 }
 
 func (e Script) Load() (map[string]string, error) {
-	proc := process.New(e.Cmd, e.Dir)
+	proc := process.NewScript(e.Cmd, e.Dir)
 
 	buf, err := proc.Execute()
 	if err != nil {
@@ -50,7 +50,7 @@ func (e Script) Apply(config *Config) error {
 
 	for k, v := range env {
 		log.Debugf("Setting: %s to %s", k, os.Expand(v, config.GetConfig))
-		val, err := process.CompileValue(os.Expand(v, config.GetConfig), e.Dir)
+		val, err := CompileValue(os.Expand(v, config.GetConfig), e.Dir)
 		if err != nil {
 			return err
 		}

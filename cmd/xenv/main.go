@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/ionrock/xenv/config"
+	"github.com/ionrock/xenv/util"
 	"github.com/urfave/cli"
 )
 
@@ -21,7 +21,12 @@ func XeAction(c *cli.Context) error {
 		fmt.Printf("error loading config: %s\n", err)
 	}
 
-	env := config.NewEnvironment(filepath.Dir(c.String("config")), cfgs)
+	configDir, err := util.AbsDir(c.String("config"))
+	if err != nil {
+		return err
+	}
+
+	env := config.NewEnvironment(configDir, cfgs)
 
 	for _, cfg := range cfgs {
 		handler := env.ConfigHandler

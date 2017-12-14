@@ -6,7 +6,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 
 	"github.com/ionrock/we/flat"
-	"github.com/ionrock/we/process"
 )
 
 type File struct {
@@ -35,7 +34,7 @@ func (e File) Apply(config *Config) error {
 
 	for k, v := range env {
 		log.Debugf("Setting: %s to %s", k, os.Expand(v, config.GetConfig))
-		val, err := process.CompileValue(os.Expand(v, config.GetConfig), wd)
+		val, err := CompileValue(os.Expand(v, config.GetConfig), wd)
 		if err != nil {
 			return err
 		}

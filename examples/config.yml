@@ -1,7 +1,7 @@
 ---
 - service:
-    name: py-static-web
-    cmd: python -m SimpleHTTPServer
+    name: web-server
+    cmd: go run server.go
 
 - env:
     foo: bar
@@ -13,8 +13,3 @@
     name: apt
     cmd: 'echo "apt get updating..."'
     dir: '/tmp'
-
-- watch:
-    file: /etc/cert/foo
-    action:
-      restart: py-static-web

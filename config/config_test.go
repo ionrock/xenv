@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ionrock/we/config"
+	"github.com/ionrock/xenv/config"
 )
 
 func TestGetConfig(t *testing.T) {

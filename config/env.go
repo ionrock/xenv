@@ -116,6 +116,10 @@ func (e *Environment) DataHandler(cfg XeConfig) error {
 func (e *Environment) ConfigHandler(cfg XeConfig) error {
 	switch {
 	case cfg.Service != nil:
+		if cfg.Service.Dir == "" {
+			cfg.Service.Dir = e.ConfigDir
+		}
+
 		err := e.StartService(cfg.Service.Name, cfg.Service.Cmd, cfg.Service.Dir)
 		if err != nil {
 			return err
