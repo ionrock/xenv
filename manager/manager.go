@@ -72,8 +72,6 @@ func (m *Manager) Start(name, command, dir string, env []string, of *process.Out
 	go of.LineReader(pipeWait, name, stdout, false)
 	go of.LineReader(pipeWait, name, stderr, true)
 
-	of.SystemOutput(fmt.Sprintf("starting %s on port TODO", name))
-
 	finished := make(chan struct{}) // closed on process exit
 
 	err = ps.Start()
