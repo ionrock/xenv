@@ -7,7 +7,6 @@ import (
 	"os/exec"
 
 	"github.com/ionrock/xenv/manager"
-	"github.com/ionrock/xenv/process"
 )
 
 func findLongestServiceName(cfgs []XeConfig) int {
@@ -28,35 +27,28 @@ func findLongestServiceName(cfgs []XeConfig) int {
 
 // Interfaces
 
-// ProcessManager provides an interface to the process.Manager.
-type ProcessManager interface {
-	Processes() map[string]*exec.Cmd
-	Start(name string, cmd string, dir string, env []string, of *process.Output) error
-	Stop(name string) error
-}
-
 type Environment struct {
-	Services  ProcessManager
+	Services  *manager.Manager
 	Tasks     map[string]*exec.Cmd
 	Config    *Config
 	ConfigDir string
 }
 
 func NewEnvironment(cfgDir string, cfgs []XeConfig) *Environment {
-	of := &process.Output{
-		Padding: findLongestServiceName(cfgs),
-	}
-
 	return &Environment{
-		Services:  manager.New(of),
+		Services:  manager.New(),
 		Tasks:     make(map[string]*exec.Cmd),
 		Config:    &Config{make(map[string]string)},
 		ConfigDir: cfgDir,
 	}
 }
 
-func (e *Environment) StartService(name, cmd, dir string) error {
-	return e.Services.Start(name, cmd, dir, e.Config.ToEnv(), nil)
+func (e *Environment) StartService(name, command, dir string) error {
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Dir = dir
+	cmd.Env = e.Config.ToEnv()
+
+	return e.Services.StartProcess(name, cmd)
 }
 
 func (e *Environment) SetEnv(k, v string) error {
@@ -80,15 +72,14 @@ func (e *Environment) SetEnvFromScript(cmd, dir string) error {
 	return nil
 }
 
-func (e *Environment) RunTask(name, cmd, dir string) error {
-	proc := process.New(cmd, dir)
+func (e *Environment) RunTask(name, command, dir string) error {
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Dir = dir
 	fmt.Println("Running Task: " + name)
 
 	// TODO: Use some better logging here.
-	err := proc.Run()
+	err := cmd.Run()
 	if err != nil {
-		fmt.Println(proc.Output.String())
-		fmt.Printf("Error: %s\n", err)
 		return err
 	}
 
@@ -148,7 +139,7 @@ func (e *Environment) ConfigHandler(cfg XeConfig) error {
 }
 
 func (e *Environment) CleanUp() {
-	for name, _ := range e.Services.Processes() {
+	for name, _ := range e.Services.Processes {
 		err := e.Services.Stop(name)
 		if err != nil {
 			log.Printf("error killing service: %q\n", err)

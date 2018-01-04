@@ -2,11 +2,11 @@ package config
 
 import (
 	"os"
+	"os/exec"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
 	"github.com/ionrock/we/flat"
-	"github.com/ionrock/xenv/process"
 )
 
 type Script struct {
@@ -15,16 +15,17 @@ type Script struct {
 }
 
 func (e Script) Load() (map[string]string, error) {
-	proc := process.NewScript(e.Cmd, e.Dir)
+	cmd := exec.Command("sh", "-c", e.Cmd)
+	cmd.Dir = e.Dir
 
-	buf, err := proc.Execute()
+	buf, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
 	var f interface{}
 
-	err = yaml.Unmarshal(buf.Bytes(), &f)
+	err = yaml.Unmarshal(buf, &f)
 	if err != nil {
 		return nil, err
 	}

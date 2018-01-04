@@ -4,125 +4,124 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
-
-	log "github.com/Sirupsen/logrus"
-	"github.com/ionrock/xenv/process"
-	"github.com/ionrock/xenv/util"
 )
 
+type OutHandler func(string) string
+
+// Manager manages a set of Processes.
 type Manager struct {
-	// processes is a map with our processes
-	ProcessMap map[string]*exec.Cmd
+	Processes map[string]*exec.Cmd
 
-	// Output provides a prefix formatter for logging
-	Output *process.Output
-
-	// wg for keeping track of our process go routines
-	wg sync.WaitGroup
-
-	teardown, teardownNow Barrier
+	lock sync.Mutex
 }
 
-func New(of *process.Output) *Manager {
+// New creates a new *Manager.
+func New() *Manager {
 	return &Manager{
-		ProcessMap: make(map[string]*exec.Cmd),
-		Output:     of,
+		Processes: make(map[string]*exec.Cmd),
+	}
+
+}
+
+// StdoutHandler returns an OutHandler that will ensure the underlying
+// process has an empty stdout buffer and logs to stdout a prefixed value
+// of "$name | $line".
+func (m *Manager) StdoutHandler(name string) OutHandler {
+	return func(line string) string {
+		fmt.Printf("%s | %s\n", name, line)
+		return ""
 	}
 }
 
-func (m *Manager) Processes() map[string]*exec.Cmd {
-	return m.ProcessMap
+// StderrHandler returns an OutHandler that will ensure the underlying
+// process has an empty stderr buffer and logs to stdout a prefixed value
+// of "$name | $line".
+func (m *Manager) StderrHandler(name string) OutHandler {
+	return func(line string) string {
+		fmt.Printf("%s | %s\n", name, line)
+		return ""
+	}
 }
 
-func (m *Manager) Start(name, command, dir string, env []string, of *process.Output) error {
-	if of == nil {
-		of = m.Output
-	}
+// Start and managed a new process using the default handlers from a
+// string.
+func (m *Manager) Start(name, command string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	parts := util.SplitCommand(command)
+	cmd := exec.Command("sh", "-c", command)
 
-	var ps *exec.Cmd
-	if len(parts) == 1 {
-		ps = exec.Command(parts[0])
-	} else {
-		ps = exec.Command(parts[0], parts[1:]...)
-	}
-
-	if dir != "" {
-		ps.Dir = dir
-	}
-
-	if env != nil {
-		ps.Env = env
-	}
-
-	stdout, err := ps.StdoutPipe()
-	if err != nil {
-		return err
-	}
-	stderr, err := ps.StderrPipe()
+	err := cmd.Start()
 	if err != nil {
 		return err
 	}
 
-	// Start reading the output of the
-	pipeWait := new(sync.WaitGroup)
-	pipeWait.Add(2)
+	m.Processes[name] = cmd
+	return nil
+}
 
-	go of.LineReader(pipeWait, name, stdout, false)
-	go of.LineReader(pipeWait, name, stderr, true)
+// StartProcess starts and manages a predifined process.
+func (m *Manager) StartProcess(name string, cmd *exec.Cmd) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	finished := make(chan struct{}) // closed on process exit
-
-	err = ps.Start()
+	err := cmd.Start()
 	if err != nil {
-		of.SystemOutput(fmt.Sprint("Failed to start ", name, ": ", err))
 		return err
 	}
 
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
-		defer close(finished)
-		pipeWait.Wait()
-		ps.Wait()
-	}()
+	m.Processes[name] = cmd
+	return nil
+}
 
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+// Stop will try to stop a managed process. If the process does not
+// exist, no error is returned.
+func (m *Manager) Stop(name string) error {
+	cmd, ok := m.Processes[name]
+	// We don't mind stopping a process that doesn't exist.
+	if !ok {
+		return nil
+	}
 
-		select {
-		case <-finished:
-			m.teardown.Fall()
+	// ProcessState means it is already exited.
+	if cmd.ProcessState != nil {
+		return nil
+	}
 
-		case <-m.teardown.Barrier():
-			of.SystemOutput(fmt.Sprintf("Killing %s", name))
-			ps.Process.Kill()
-		}
-	}()
+	err := cmd.Process.Kill()
+	return err
+}
 
-	m.ProcessMap[name] = ps
+// Remove will try to stop and remove a managed process.
+func (m *Manager) Remove(name string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	err := m.Stop(name)
+	if err != nil {
+		return err
+	}
+
+	// Note that if the stop fails we don't remove it from the map of
+	// processes to avoid losing the reference.
+	delete(m.Processes, name)
 
 	return nil
 }
 
-func (m *Manager) Stop(name string) error {
-	svc, ok := m.ProcessMap[name]
-	if !ok {
-		// should probably still throw an error here...
-		return nil
+// Wait will block until all managed processes have finished.
+func (m *Manager) Wait() error {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(m.Processes))
+
+	for _, cmd := range m.Processes {
+		go func(cmd *exec.Cmd) {
+			defer wg.Done()
+			cmd.Wait()
+		}(cmd)
 	}
 
-	if svc.ProcessState != nil {
-		return nil
-	}
-
-	err := svc.Process.Kill()
-	if err != nil {
-		log.Printf("error killing service: %s, %s\n", name, err)
-		return err
-	}
+	wg.Wait()
 
 	return nil
 }

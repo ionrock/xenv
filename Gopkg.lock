@@ -9,12 +9,6 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/apoydence/onpar"
-  packages = [".","expect","matchers"]
-  revision = "ee7d39a4621c2c6bbe7fa372079f33510ec36d2d"
-
-[[projects]]
-  branch = "master"
   name = "github.com/flynn/go-shlex"
   packages = ["."]
   revision = "3f9db97f856818214da2e1057f8ad84803971cff"
@@ -34,7 +28,7 @@
 [[projects]]
   branch = "ionrock/xe/proc-monitor"
   name = "github.com/ionrock/we"
-  packages = ["config","flat","process","process/forego"]
+  packages = ["flat","process","process/forego"]
   revision = "a392e27bfe76c4b6f1edc3488b4002e564b14d94"
 
 [[projects]]
@@ -64,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f298b5d028554423cd98787da794f97acd96e1e637d39c0c90f5ff5566018db9"
+  inputs-digest = "7b01be29bff3955dce8278a4e589fc9862d31d7629319dcab869118e38e05ced"
   solver-name = "gps-cdcl"
   solver-version = 1
