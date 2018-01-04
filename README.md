@@ -16,7 +16,8 @@ management, init systems and orchestration systems.
 The essence of `xenv` is the configuration file. It is a simple list
 of entries that happen one after another.
 
-Lets consider a gRPC service that runs in some production environment. In production we need a few things:
+Lets consider a gRPC service that runs in some production
+environment. In production we need a few things:
 
  - A frontend proxy that does TLS termination and some health checking.
 
@@ -26,7 +27,8 @@ Lets consider a gRPC service that runs in some production environment. In produc
  - A configuration file and/or environment variables to turn on
    features and set functionality.
 
- - Standardized logging for sending logs to a centralized collector or local syslog.
+ - Standardized logging for sending logs to a centralized collector or
+   local syslog.
 
  - Registration with a service discovery system or DNS.
 
@@ -42,12 +44,6 @@ or a provisioned host.
 Here is an example:
 ```
 ---
-
-# Start a nginx process for TLS termination
-- service:
-    name: nginx
-    cmd: nginx
-
 
 # Set up some environment variables. This structure is flattened using `_` between levels.
 - env:

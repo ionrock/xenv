@@ -2,4 +2,4 @@ build:
 	go build ./cmd/xenv
 
 test:
-	go test ...
+	go test ./... -ignore ./vendor

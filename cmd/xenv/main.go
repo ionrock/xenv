@@ -13,6 +13,7 @@ import (
 var builddate = ""
 var gitref = ""
 
+// XeAction runs the main command.
 func XeAction(c *cli.Context) error {
 	fmt.Println("loading " + c.String("config"))
 
@@ -33,9 +34,18 @@ func XeAction(c *cli.Context) error {
 		if c.Bool("data") {
 			handler = env.DataHandler
 		}
+
 		if err := handler(cfg); err != nil {
 			return err
 		}
+	}
+
+	if c.Bool("data") {
+		for _, pair := range env.Config.ToEnv() {
+			fmt.Println(pair)
+		}
+
+		return nil
 	}
 
 	parts := c.Args()
