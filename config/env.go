@@ -53,7 +53,7 @@ func (e *Environment) StartService(name, command, dir string) error {
 
 func (e *Environment) SetEnv(k, v string) error {
 	v = os.Expand(v, e.Config.GetConfig)
-	val, err := CompileValue(v, e.ConfigDir)
+	val, err := CompileValue(v, e.ConfigDir, e.Config.ToEnv())
 	if err != nil {
 		fmt.Printf("error getting value for env: %q %q\n", v, err)
 		return err

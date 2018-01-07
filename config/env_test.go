@@ -43,7 +43,7 @@ func TestScriptEchoBar(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}
-	fmt.Fprintf(os.Stdout, os.Getenv("BAR"))
+	fmt.Println(os.Getenv("BAR"))
 	os.Exit(0)
 }
 
@@ -59,6 +59,7 @@ func TestSetEnv(t *testing.T) {
 
 	// Get our command using our test executable
 	val := fmt.Sprintf("`%s`", strings.Join(scriptCmd("TestScriptEchoBar"), " "))
+	fmt.Println(val)
 
 	// Set the result to FOO
 	err := e.SetEnv("FOO", val)
