@@ -8,12 +8,6 @@
   version = "v1.0.4"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/flynn/go-shlex"
-  packages = ["."]
-  revision = "3f9db97f856818214da2e1057f8ad84803971cff"
-
-[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -46,6 +40,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f8a67b859be71084df5d0da351f2329b7a7504ad92c57e4a28625bd94ea31cba"
+  inputs-digest = "5a431de83e09cfed908ce2759f143df8b747883253abc329f4b93bbb265871b4"
   solver-name = "gps-cdcl"
   solver-version = 1
