@@ -6,7 +6,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ghodss/yaml"
-	"github.com/ionrock/we/flat"
 )
 
 type Script struct {
@@ -14,9 +13,10 @@ type Script struct {
 	Dir string
 }
 
-func (e Script) Load() (map[string]string, error) {
+func (e Script) Load(config *Config) (map[string]string, error) {
 	cmd := exec.Command("sh", "-c", e.Cmd)
 	cmd.Dir = e.Dir
+	cmd.Env = config.ToEnv()
 
 	buf, err := cmd.Output()
 	if err != nil {
@@ -30,7 +30,7 @@ func (e Script) Load() (map[string]string, error) {
 		return nil, err
 	}
 
-	env := &flat.FlatEnv{
+	env := &FlatEnv{
 		Path: e.Dir,
 		Env:  make(map[string]string),
 	}
@@ -44,14 +44,14 @@ func (e Script) Load() (map[string]string, error) {
 }
 
 func (e Script) Apply(config *Config) error {
-	env, err := e.Load()
+	env, err := e.Load(config)
 	if err != nil {
 		return err
 	}
 
 	for k, v := range env {
 		log.Debugf("Setting: %s to %s", k, os.Expand(v, config.GetConfig))
-		val, err := CompileValue(os.Expand(v, config.GetConfig), e.Dir)
+		val, err := CompileValue(os.Expand(v, config.GetConfig), e.Dir, config.ToEnv())
 		if err != nil {
 			return err
 		}

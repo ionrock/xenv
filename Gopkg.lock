@@ -20,18 +20,6 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/ionrock/procs"
-  packages = ["."]
-  revision = "96010c00c1d74b2dd5e8fa62a41aa4c4c45984d0"
-
-[[projects]]
-  branch = "ionrock/xe/proc-monitor"
-  name = "github.com/ionrock/we"
-  packages = ["flat","process","process/forego"]
-  revision = "a392e27bfe76c4b6f1edc3488b4002e564b14d94"
-
-[[projects]]
   name = "github.com/urfave/cli"
   packages = ["."]
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
@@ -58,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7b01be29bff3955dce8278a4e589fc9862d31d7629319dcab869118e38e05ced"
+  inputs-digest = "f8a67b859be71084df5d0da351f2329b7a7504ad92c57e4a28625bd94ea31cba"
   solver-name = "gps-cdcl"
   solver-version = 1
