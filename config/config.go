@@ -6,10 +6,13 @@ import (
 	"strings"
 )
 
+// Config provides a managed map that provides configuration for an Environment.
 type Config struct {
 	Data map[string]string
 }
 
+// GetConfig gets a config value from the Config, falling back to the
+// os.Environ. This function can be used with os.Expand.
 func (c *Config) GetConfig(name string) string {
 	if v, ok := c.Data[name]; ok {
 		return v
@@ -18,10 +21,12 @@ func (c *Config) GetConfig(name string) string {
 	return os.Getenv(name)
 }
 
+// Set sets a value in the Config
 func (c *Config) Set(k, v string) {
 	c.Data[k] = v
 }
 
+// Get gets a value in the config and is compatible with a map.
 func (c *Config) Get(k string) (string, bool) {
 	v, ok := c.Data[k]
 	return v, ok

@@ -10,9 +10,14 @@ import (
 	"github.com/ghodss/yaml"
 )
 
+// FlatEnv provides a flattend list of key/values based on a hierarchy
+// that might be found in a YAML or JSON file.
 type FlatEnv struct {
+	// Path to the YAML / JSON file.
 	Path string
-	Env  map[string]string
+
+	// Env maintains the map[string]string of the flattened data.
+	Env map[string]string
 }
 
 func (env *FlatEnv) key(parts []string) (string, error) {
@@ -43,6 +48,9 @@ func (env *FlatEnv) addFloat64(prefix []string, value float64) error {
 	return env.addString(prefix, strconv.FormatFloat(value, 'f', -1, 64))
 }
 
+// Load takes an interface and applies the data to the Env. The prefix
+// allows a list of fields to be combined into a prefix for the keys
+// found.
 func (env *FlatEnv) Load(v interface{}, prefix []string) error {
 	iterMap := func(x map[string]interface{}, prefix []string) {
 		for k, v := range x {
@@ -80,6 +88,7 @@ func (env *FlatEnv) Load(v interface{}, prefix []string) error {
 	return nil
 }
 
+// Decode reads the FlatEnv's path to create an interface{} for loading.
 func (env *FlatEnv) Decode() (interface{}, error) {
 	b, err := ioutil.ReadFile(env.Path)
 	if err != nil {
@@ -96,6 +105,8 @@ func (env *FlatEnv) Decode() (interface{}, error) {
 	return f, nil
 }
 
+// NewFlatEnv creates a new FlatEnv, loads the provided file, flattens
+// the result and returns it as a map[string]string.
 func NewFlatEnv(path string) (map[string]string, error) {
 	env := &FlatEnv{
 		Path: path,

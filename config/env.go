@@ -24,16 +24,28 @@ func findLongestServiceName(cfgs []*XeConfig) int {
 	return size
 }
 
+// Environment maintains the executable environment state.
 type Environment struct {
-	Services  *manager.Manager
-	Tasks     map[string]*exec.Cmd
-	Config    *Config
-	ConfigDir string
-	DataOnly  bool
+	// Services provides a simple process manager to start/stop
+	// processes along with the primary command.
+	Services *manager.Manager
 
-	post []*XeConfig
+	// Tasks can run before and after a command.
+	Tasks map[string]*exec.Cmd
+
+	// Config provides the environment for the command.
+	Config *Config
+
+	// ConfigDir is the directory where the config file is in order to
+	// provide a base for tasks / services.
+	ConfigDir string
+
+	DataOnly bool
+	post     []*XeConfig
 }
 
+// NewEnvironment creates a new *Environment rooted at the provided
+// directory.
 func NewEnvironment(cfgDir string) *Environment {
 	return &Environment{
 		Services:  manager.New(),
@@ -43,6 +55,7 @@ func NewEnvironment(cfgDir string) *Environment {
 	}
 }
 
+// Pre runs the defined steps before the specified command.
 func (e *Environment) Pre(cfgs []*XeConfig) error {
 	handler := e.ConfigHandler
 	if e.DataOnly {
@@ -58,9 +71,11 @@ func (e *Environment) Pre(cfgs []*XeConfig) error {
 	return nil
 }
 
+// Post runs the defined steps after the process exits, no matter the
+// exit status of the command.
 func (e *Environment) Post() error {
 	fmt.Println(fmt.Sprintf("post value: %#v", e.post))
-	err := e.CleanUp()
+	err := e.StopServices()
 	if err != nil {
 		return err
 	}
@@ -75,6 +90,7 @@ func (e *Environment) Post() error {
 	return nil
 }
 
+// StartService starts a process with the process manager in the environment.
 func (e *Environment) StartService(name, command, dir string) error {
 	cmd := exec.Command("sh", "-c", command)
 	cmd.Dir = dir
@@ -83,6 +99,7 @@ func (e *Environment) StartService(name, command, dir string) error {
 	return e.Services.StartProcess(name, cmd)
 }
 
+// SetEnv sets an environment value.
 func (e *Environment) SetEnv(k, v string) error {
 	v = os.Expand(v, e.Config.GetConfig)
 	val, err := CompileValue(v, e.ConfigDir, e.Config.ToEnv())
@@ -94,6 +111,8 @@ func (e *Environment) SetEnv(k, v string) error {
 	return nil
 }
 
+// SetEnvFromScript will run a script that outputs YAML or JSON,
+// flatten the output and add it to the environment's configuration.
 func (e *Environment) SetEnvFromScript(cmd, dir string) error {
 	s := Script{Cmd: cmd, Dir: dir}
 	err := s.Apply(e.Config)
@@ -104,6 +123,8 @@ func (e *Environment) SetEnvFromScript(cmd, dir string) error {
 	return nil
 }
 
+// RunTask runs a task in the environment. The output is sent to
+// stdout and is prefixed by the name of the task.
 func (e *Environment) RunTask(name, command, dir string) error {
 	t := &Task{
 		Name: name,
@@ -115,6 +136,8 @@ func (e *Environment) RunTask(name, command, dir string) error {
 	return t.Run()
 }
 
+// DataHandler only responds to items that update the data. This is
+// used for debugging configurations.
 func (e *Environment) DataHandler(cfg *XeConfig) error {
 	switch {
 	case cfg.Env != nil:
@@ -133,6 +156,8 @@ func (e *Environment) DataHandler(cfg *XeConfig) error {
 	return nil
 }
 
+// ConfigHandler calls the respective handler actionss based on the
+// passed in XeConfig. It is assumed the XeConfig will only have 1 field in its struct filled in.
 func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 	switch {
 	case cfg.Service != nil:
@@ -176,7 +201,8 @@ func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 	return nil
 }
 
-func (e *Environment) CleanUp() error {
+// StopServices stops the services managed by the process manager.
+func (e *Environment) StopServices() error {
 	for name, _ := range e.Services.Processes {
 		err := e.Services.Stop(name)
 		if err != nil {

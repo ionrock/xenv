@@ -10,6 +10,12 @@ import (
 	"github.com/ionrock/xenv/util"
 )
 
+// CompileValue accpets a value and tries to run it as a command when
+// it starts and ends with backticks (`). The path provides the directory
+// where the command will be run and the []string, the environment. The
+// result will be trimmed of whitespace in order to be used as a string
+// value. For example, if a command normally would output an extra new
+// line for the terminal, that newline is removed.
 func CompileValue(value, path string, env []string) (string, error) {
 	log.Debug("%#v", value)
 
