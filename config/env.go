@@ -24,8 +24,6 @@ func findLongestServiceName(cfgs []*XeConfig) int {
 	return size
 }
 
-// Interfaces
-
 type Environment struct {
 	Services  *manager.Manager
 	Tasks     map[string]*exec.Cmd

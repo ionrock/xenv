@@ -18,7 +18,7 @@ func TestLoadEnvFiles(t *testing.T) {
 	for _, path := range paths {
 		env, err := config.NewFlatEnv(path)
 		if err != nil {
-			t.Fatal("failed to load %q: %q", path, err)
+			t.Fatalf("failed to load %q: %q", path, err)
 		}
 
 		v, ok := env["FOO"]
@@ -28,7 +28,7 @@ func TestLoadEnvFiles(t *testing.T) {
 		}
 
 		if v != "bar" {
-			t.Errorf("value is wrong: %q != bar; %q", env["FOO"])
+			t.Errorf("value is wrong: %q != bar; %q", env["FOO"], env)
 		}
 	}
 }
@@ -55,7 +55,7 @@ func TestNestedMaps(t *testing.T) {
 	path := "testdata/nested_maps.yml"
 	env, err := config.NewFlatEnv(path)
 	if err != nil {
-		t.Fatal("failed to load %q: %q", path, err)
+		t.Fatalf("failed to load %q: %q", path, err)
 	}
 
 	if _, ok := env["FOO_BAR_BAZ"]; !ok {
@@ -67,7 +67,7 @@ func TestListValues(t *testing.T) {
 	path := "testdata/list_values.yml"
 	env, err := config.NewFlatEnv(path)
 	if err != nil {
-		t.Fatal("failed to load %q: %q", path, err)
+		t.Fatalf("failed to load %q: %q", path, err)
 	}
 	val, ok := env["FOO"]
 	if !ok {
