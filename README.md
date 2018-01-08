@@ -65,13 +65,15 @@ Here is an example:
     source: foo.conf.tmpl
 	dest: /etc/foo.conf
 
-# Use the the run command to call the command. You can also use `--`
-# and then add the command to the `xenv` call like `xenv --config env.yml -- mysvc start`
-- run_command
+# Call `xenv --config env.yml -- mysvc start` to run the command
 
-# We can run commands after the process exits such as cleaning up
-# secret files or unregistering from service discovery.
-- task:
-  name: remove-config
-  cmd: rm /etc/foo.conf
+# Anything defined in `post` will be called after the command exits,
+# no matter the exit code.
+- post:
+
+  # We can run commands after the process exits such as cleaning up
+  # secret files or unregistering from service discovery.
+  - task:
+      name: remove-config
+      cmd: rm /etc/foo.conf
 ```

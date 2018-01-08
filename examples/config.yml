@@ -13,3 +13,8 @@
     name: apt
     cmd: 'echo "apt get updating..."'
     dir: '/tmp'
+
+- post:
+    - task:
+        name: saying done
+        cmd: 'echo "finished"'

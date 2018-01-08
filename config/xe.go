@@ -12,7 +12,7 @@ type Service struct {
 	Dir  string `json:"dir"`
 }
 
-type Task struct {
+type XeTask struct {
 	Name string `json:"name"`
 	Cmd  string `json:"cmd"`
 	Dir  string `json:"dir"`
@@ -30,16 +30,17 @@ type XeConfig struct {
 	Service   *Service          `json:"service"`
 	Env       map[string]string `json:"env"`
 	EnvScript string            `json:"envscript"`
-	Task      *Task             `json:"task"`
+	Task      *XeTask           `json:"task"`
+	Post      []*XeConfig       `json:"post"`
 }
 
-func NewXeConfig(path string) ([]XeConfig, error) {
+func NewXeConfig(path string) ([]*XeConfig, error) {
 	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	config := make([]XeConfig, 0)
+	config := make([]*XeConfig, 0)
 
 	err = yaml.Unmarshal(b, &config)
 	if err != nil {

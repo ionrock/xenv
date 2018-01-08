@@ -2,14 +2,13 @@ package config
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
 	"github.com/ionrock/xenv/manager"
 )
 
-func findLongestServiceName(cfgs []XeConfig) int {
+func findLongestServiceName(cfgs []*XeConfig) int {
 	size := 0
 
 	for _, cfg := range cfgs {
@@ -32,15 +31,50 @@ type Environment struct {
 	Tasks     map[string]*exec.Cmd
 	Config    *Config
 	ConfigDir string
+	DataOnly  bool
+
+	post []*XeConfig
 }
 
-func NewEnvironment(cfgDir string, cfgs []XeConfig) *Environment {
+func NewEnvironment(cfgDir string) *Environment {
 	return &Environment{
 		Services:  manager.New(),
 		Tasks:     make(map[string]*exec.Cmd),
 		Config:    &Config{make(map[string]string)},
 		ConfigDir: cfgDir,
 	}
+}
+
+func (e *Environment) Pre(cfgs []*XeConfig) error {
+	handler := e.ConfigHandler
+	if e.DataOnly {
+		handler = e.DataHandler
+	}
+
+	for _, cfg := range cfgs {
+		if err := handler(cfg); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (e *Environment) Post() error {
+	fmt.Println(fmt.Sprintf("post value: %#v", e.post))
+	err := e.CleanUp()
+	if err != nil {
+		return err
+	}
+
+	for _, cfg := range e.post {
+		// We don't worry about using a data handler here.
+		if err := e.ConfigHandler(cfg); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (e *Environment) StartService(name, command, dir string) error {
@@ -73,20 +107,17 @@ func (e *Environment) SetEnvFromScript(cmd, dir string) error {
 }
 
 func (e *Environment) RunTask(name, command, dir string) error {
-	cmd := exec.Command("sh", "-c", command)
-	cmd.Dir = dir
-	fmt.Println("Running Task: " + name)
-
-	// TODO: Use some better logging here.
-	err := cmd.Run()
-	if err != nil {
-		return err
+	t := &Task{
+		Name: name,
+		Cmd:  command,
+		Dir:  dir,
+		Env:  e.Config.ToEnv(),
 	}
 
-	return nil
+	return t.Run()
 }
 
-func (e *Environment) DataHandler(cfg XeConfig) error {
+func (e *Environment) DataHandler(cfg *XeConfig) error {
 	switch {
 	case cfg.Env != nil:
 		for k, v := range cfg.Env {
@@ -104,7 +135,7 @@ func (e *Environment) DataHandler(cfg XeConfig) error {
 	return nil
 }
 
-func (e *Environment) ConfigHandler(cfg XeConfig) error {
+func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 	switch {
 	case cfg.Service != nil:
 		if cfg.Service.Dir == "" {
@@ -133,16 +164,27 @@ func (e *Environment) ConfigHandler(cfg XeConfig) error {
 		if err != nil {
 			return err
 		}
+
+	case cfg.Post != nil:
+		if e.post == nil {
+			e.post = make([]*XeConfig, 0)
+		}
+
+		for _, cfg := range cfg.Post {
+			e.post = append(e.post, cfg)
+		}
 	}
 
 	return nil
 }
 
-func (e *Environment) CleanUp() {
+func (e *Environment) CleanUp() error {
 	for name, _ := range e.Services.Processes {
 		err := e.Services.Stop(name)
 		if err != nil {
-			log.Printf("error killing service: %q\n", err)
+			return err
 		}
 	}
+
+	return nil
 }
