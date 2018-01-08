@@ -1,5 +1,10 @@
 # xenv
 
+[![](https://travis-ci.org/ionrock/xenv.svg?branch=master)](https://travis-ci.org/ionrock/xenv)
+[![Go Report Card](https://goreportcard.com/badge/github.com/ionrock/xenv)](https://goreportcard.com/report/github.com/ionrock/xenv)
+[![GoDoc](https://godoc.org/github.com/ionrock/xenv?status.svg)](https://godoc.org/github.com/ionrock/xenv)
+
+
 Xenv provides an executable environment for managing a process at
 runtime. Whether that is managing environment variables, starting
 sidecar / helper processes or performing small pre/post tasks, `xenv`
