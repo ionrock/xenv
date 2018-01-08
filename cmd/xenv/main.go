@@ -27,24 +27,18 @@ func XeAction(c *cli.Context) error {
 		return err
 	}
 
-	env := config.NewEnvironment(configDir, cfgs)
+	env := config.NewEnvironment(configDir)
+	env.DataOnly = c.Bool("data")
 
-	for _, cfg := range cfgs {
-		handler := env.ConfigHandler
-		if c.Bool("data") {
-			handler = env.DataHandler
-		}
-
-		if err := handler(cfg); err != nil {
-			return err
-		}
+	err = env.Pre(cfgs)
+	if err != nil {
+		return err
 	}
 
 	if c.Bool("data") {
 		for _, pair := range env.Config.ToEnv() {
 			fmt.Println(pair)
 		}
-
 		return nil
 	}
 
@@ -55,11 +49,15 @@ func XeAction(c *cli.Context) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
-
 	cmd.Env = env.Config.ToEnv()
 
 	err = cmd.Run()
-	env.CleanUp()
+
+	fmt.Println("running post now")
+	postErr := env.Post()
+	if postErr != nil {
+		fmt.Printf("Error running post: %s", postErr)
+	}
 
 	if err != nil {
 		return err
