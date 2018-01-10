@@ -21,7 +21,7 @@ environment. In production we need a few things:
 
  - A frontend proxy that does TLS termination and some health checking.
 
- - Secrets from soemthing like [vault](https://www.vaultproject.io/)
+ - Secrets from something like [vault](https://www.vaultproject.io/)
    in order to connect to other services or get an auth token.
 
  - A configuration file and/or environment variables to turn on
