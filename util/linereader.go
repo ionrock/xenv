@@ -8,7 +8,7 @@ import (
 )
 
 // OutHandler provides a simple function for processing a line of
-// output from a proccess.
+// output from a process.
 type OutHandler func(string) string
 
 // LineReader can be started in a go routine to watch stdout/stderr
