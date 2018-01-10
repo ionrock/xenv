@@ -63,7 +63,7 @@ Here is an example:
 # You can also be explicit
 - template:
     source: foo.conf.tmpl
-	dest: /etc/foo.conf
+    dest: /etc/foo.conf
 
 # Call `xenv --config env.yml -- mysvc start` to run the command
 
