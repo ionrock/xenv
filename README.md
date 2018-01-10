@@ -42,15 +42,15 @@ same code and not a feature of an upstream system like Kubernetes, CI
 or a provisioned host.
 
 Here is an example:
-```
+```yaml
 ---
 
 # Set up some environment variables. This structure is flattened using `_` between levels.
 - env:
-	# Set a single value
+    # Set a single value
     foo: bar
 
-	# Set a value to the result of a script. This doesn't use a shell!
+    # Set a value to the result of a script. This doesn't use a shell!
     baz: '`cat baz.json | jq -r .baz`'
 
 # Gather more environment data using a script that outputs JSON or YAML
