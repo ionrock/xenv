@@ -71,7 +71,7 @@ func main() {
 
 	app.Version = fmt.Sprintf("%s-%s", gitref, builddate)
 
-	app.Name = "xe"
+	app.Name = "xenv"
 	app.Usage = "Start and monitor processes creating an executable environment."
 	app.ArgsUsage = "[COMMAND]"
 	app.Action = XeAction
