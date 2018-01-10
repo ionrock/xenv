@@ -1,7 +1,15 @@
 ---
+
+- env:
+    PATH: $PATH
+
+- task:
+    name: build web server
+    cmd: 'go build -o examples/web-server examples/server.go'
+
 - service:
     name: web-server
-    cmd: go run server.go
+    cmd: ./web-server
 
 - env:
     foo: bar

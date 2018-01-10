@@ -2,23 +2,26 @@ package manager
 
 import (
 	"fmt"
-	"os/exec"
 	"sync"
-)
+	"syscall"
 
-type OutHandler func(string) string
+	"github.com/codeskyblue/kexec"
+	"github.com/ionrock/xenv/util"
+)
 
 // Manager manages a set of Processes.
 type Manager struct {
-	Processes map[string]*exec.Cmd
+	Processes map[string]*kexec.KCommand
 
-	lock sync.Mutex
+	pipeWaits map[string]*sync.WaitGroup
+	lock      sync.Mutex
 }
 
 // New creates a new *Manager.
 func New() *Manager {
 	return &Manager{
-		Processes: make(map[string]*exec.Cmd),
+		Processes: make(map[string]*kexec.KCommand),
+		pipeWaits: make(map[string]*sync.WaitGroup),
 	}
 
 }
@@ -26,7 +29,7 @@ func New() *Manager {
 // StdoutHandler returns an OutHandler that will ensure the underlying
 // process has an empty stdout buffer and logs to stdout a prefixed value
 // of "$name | $line".
-func (m *Manager) StdoutHandler(name string) OutHandler {
+func (m *Manager) StdoutHandler(name string) util.OutHandler {
 	return func(line string) string {
 		fmt.Printf("%s | %s\n", name, line)
 		return ""
@@ -36,7 +39,7 @@ func (m *Manager) StdoutHandler(name string) OutHandler {
 // StderrHandler returns an OutHandler that will ensure the underlying
 // process has an empty stderr buffer and logs to stdout a prefixed value
 // of "$name | $line".
-func (m *Manager) StderrHandler(name string) OutHandler {
+func (m *Manager) StderrHandler(name string) util.OutHandler {
 	return func(line string) string {
 		fmt.Printf("%s | %s\n", name, line)
 		return ""
@@ -45,32 +48,46 @@ func (m *Manager) StderrHandler(name string) OutHandler {
 
 // Start and managed a new process using the default handlers from a
 // string.
-func (m *Manager) Start(name, command string) error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+func (m *Manager) Start(name, command, dir string, env []string) error {
+	cmd := kexec.Command("/bin/bash", "-c", command)
+	cmd.Dir = dir
+	cmd.Env = env
 
-	cmd := exec.Command("sh", "-c", command)
-
-	err := cmd.Start()
-	if err != nil {
-		return err
-	}
-
-	m.Processes[name] = cmd
-	return nil
+	return m.StartProcess(name, cmd)
 }
 
 // StartProcess starts and manages a predifined process.
-func (m *Manager) StartProcess(name string, cmd *exec.Cmd) error {
+func (m *Manager) StartProcess(name string, cmd *kexec.KCommand) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	err := cmd.Start()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Printf("error creating stdout pipe: %s\n", err)
+		return err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		fmt.Printf("error creating stderr pipe: %s\n", err)
+		return err
+	}
+
+	wg := new(sync.WaitGroup)
+	wg.Add(2)
+
+	// These close the stdout/err channels
+	go util.LineReader(wg, stdout, m.StdoutHandler(name))
+	go util.LineReader(wg, stderr, m.StderrHandler(name))
+
+	err = cmd.Start()
 	if err != nil {
 		return err
 	}
 
 	m.Processes[name] = cmd
+	m.pipeWaits[name] = wg
+
 	return nil
 }
 
@@ -88,8 +105,7 @@ func (m *Manager) Stop(name string) error {
 		return nil
 	}
 
-	err := cmd.Process.Kill()
-	return err
+	return cmd.Terminate(syscall.SIGKILL)
 }
 
 // Remove will try to stop and remove a managed process.
@@ -115,7 +131,7 @@ func (m *Manager) Wait() error {
 	wg.Add(len(m.Processes))
 
 	for _, cmd := range m.Processes {
-		go func(cmd *exec.Cmd) {
+		go func(cmd *kexec.KCommand) {
 			defer wg.Done()
 			cmd.Wait()
 		}(cmd)

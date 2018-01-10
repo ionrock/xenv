@@ -8,6 +8,12 @@
   version = "v1.0.4"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/codeskyblue/kexec"
+  packages = ["."]
+  revision = "863094f94c7fb7c235764bf8f0f79cccea78c8eb"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -40,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5a431de83e09cfed908ce2759f143df8b747883253abc329f4b93bbb265871b4"
+  inputs-digest = "086a2ba842dee9331357aace7ecd3359d8521ee108d32705e63353ed940a9a6d"
   solver-name = "gps-cdcl"
   solver-version = 1

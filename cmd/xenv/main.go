@@ -56,7 +56,7 @@ func XeAction(c *cli.Context) error {
 	fmt.Println("running post now")
 	postErr := env.Post()
 	if postErr != nil {
-		fmt.Printf("Error running post: %s", postErr)
+		fmt.Printf("Error running post: %s\n", postErr)
 	}
 
 	if err != nil {

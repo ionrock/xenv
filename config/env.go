@@ -92,11 +92,7 @@ func (e *Environment) Post() error {
 
 // StartService starts a process with the process manager in the environment.
 func (e *Environment) StartService(name, command, dir string) error {
-	cmd := exec.Command("sh", "-c", command)
-	cmd.Dir = dir
-	cmd.Env = e.Config.ToEnv()
-
-	return e.Services.StartProcess(name, cmd)
+	return e.Services.Start(name, command, dir, e.Config.ToEnv())
 }
 
 // SetEnv sets an environment value.
@@ -114,10 +110,23 @@ func (e *Environment) SetEnv(k, v string) error {
 // SetEnvFromScript will run a script that outputs YAML or JSON,
 // flatten the output and add it to the environment's configuration.
 func (e *Environment) SetEnvFromScript(cmd, dir string) error {
-	s := Script{Cmd: cmd, Dir: dir}
-	err := s.Apply(e.Config)
+	s := Script{
+		Cmd: cmd,
+		Dir: dir,
+		Env: e.Config.ToEnv(),
+	}
+
+	env, err := s.Load()
 	if err != nil {
 		return err
+	}
+
+	for k, v := range env {
+		// We expand the value if it has any vars defined. This will
+		// also remove expansions that don't exist leaving things with an
+		// empty string.
+		val := os.Expand(v, e.Config.GetConfig)
+		e.SetEnv(k, val)
 	}
 
 	return nil
@@ -126,6 +135,10 @@ func (e *Environment) SetEnvFromScript(cmd, dir string) error {
 // RunTask runs a task in the environment. The output is sent to
 // stdout and is prefixed by the name of the task.
 func (e *Environment) RunTask(name, command, dir string) error {
+	if dir == "" {
+		dir = e.ConfigDir
+	}
+
 	t := &Task{
 		Name: name,
 		Cmd:  command,

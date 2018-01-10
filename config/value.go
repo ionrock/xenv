@@ -28,7 +28,7 @@ func CompileValue(value, path string, env []string) (string, error) {
 		return "", err
 	}
 
-	cmd := exec.Command("sh", "-c", strings.Trim(value, "`"))
+	cmd := exec.Command("/bin/bash", "-c", strings.Trim(value, "`"))
 	cmd.Dir = dirname
 	if len(env) > 0 {
 		cmd.Env = env

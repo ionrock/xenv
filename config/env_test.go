@@ -11,10 +11,9 @@ import (
 )
 
 func TestDataHandler(t *testing.T) {
-	cfgs := []config.XeConfig{}
-	e := config.NewEnvironment(".", cfgs)
+	e := config.NewEnvironment(".")
 
-	e.DataHandler(config.XeConfig{Env: map[string]string{"FOO": "foo"}})
+	e.DataHandler(&config.XeConfig{Env: map[string]string{"FOO": "foo"}})
 
 	if _, ok := e.Config.Get("FOO"); !ok {
 		t.Error("error mapping EnvScript to data")
@@ -47,8 +46,20 @@ func TestScriptEchoBar(t *testing.T) {
 	os.Exit(0)
 }
 
+func TestScriptEnvInjected(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	if os.Getenv("ENV_INJECTED") != "true" {
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}
+
 func TestSetEnv(t *testing.T) {
-	e := config.NewEnvironment(".", []config.XeConfig{})
+	e := config.NewEnvironment(".")
 
 	// Set bar to a value we'll use in our script to ensure that our
 	// config is linearly applied throughout the processing.
@@ -75,5 +86,32 @@ func TestSetEnv(t *testing.T) {
 
 	if val != "hello" {
 		t.Errorf("error with script result: %s != hello", val)
+	}
+}
+
+func TestTaskGetsEnv(t *testing.T) {
+	e := config.NewEnvironment(".")
+	e.SetEnv("GO_WANT_HELPER_PROCESS", "1")
+	e.SetEnv("ENV_INJECTED", "true")
+
+	cmd := scriptCmd("TestScriptEnvInjected")
+
+	err := e.RunTask("test_get_env", strings.Join(cmd, " "), "")
+	if err != nil {
+		t.Errorf("env not injected into task")
+	}
+}
+
+func TestSetEnvFromScriptExpandsVars(t *testing.T) {
+	e := config.NewEnvironment(".")
+	e.SetEnv("GREETING", "world")
+	err := e.SetEnvFromScript("cat testdata/script_out_with_vars.yml", ".")
+	if err != nil {
+		t.Errorf("error running script to update env: %s", err)
+	}
+
+	result, _ := e.Config.Get("HELLO")
+	if result != "world" {
+		t.Errorf("error setting value from existing env: %s", result)
 	}
 }
