@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 )
 
+// AbsDir finds the absolute directory name of a path (string) and
+// asserts the file exists.
 func AbsDir(path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {

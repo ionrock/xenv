@@ -1,3 +1,5 @@
+// Package config takes the xenv config and performs the tasks
+// defined.
 package config
 
 import (
@@ -216,7 +218,7 @@ func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 
 // StopServices stops the services managed by the process manager.
 func (e *Environment) StopServices() error {
-	for name, _ := range e.Services.Processes {
+	for name := range e.Services.Processes {
 		err := e.Services.Stop(name)
 		if err != nil {
 			return err

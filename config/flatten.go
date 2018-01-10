@@ -82,7 +82,7 @@ func (env *FlatEnv) Load(v interface{}, prefix []string) error {
 	case []interface{}:
 		iterSlice(vv, prefix)
 	default:
-		return errors.New(fmt.Sprintf("Unknown type: %#v", vv))
+		return fmt.Errorf("Unknown type: %#v", vv)
 	}
 
 	return nil

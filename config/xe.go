@@ -1,4 +1,3 @@
-// xe.go provides some models for parsing from JSON/YAML
 package config
 
 import (

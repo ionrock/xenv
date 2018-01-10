@@ -11,7 +11,7 @@ import (
 // output from a proccess.
 type OutHandler func(string) string
 
-// lineReader can be started in a go routine to watch stdout/stderr
+// LineReader can be started in a go routine to watch stdout/stderr
 // and print each line prefixed with the Task Name.
 func LineReader(wg *sync.WaitGroup, r io.Reader, handler OutHandler) {
 	defer wg.Done()

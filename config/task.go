@@ -8,7 +8,7 @@ import (
 	"github.com/ionrock/xenv/util"
 )
 
-// Task	runs a command before starting the process.
+// Task runs a command before starting the process.
 type Task struct {
 	// Name the task. This Name is used to prefix the output to stdout.
 	Name string
