@@ -5,11 +5,17 @@
 [![GoDoc](https://godoc.org/github.com/ionrock/xenv?status.svg)](https://godoc.org/github.com/ionrock/xenv)
 
 
-Xenv provides an executable environment for managing a process at
-runtime. Whether that is managing environment variables, starting
-sidecar / helper processes or performing small pre/post tasks, `xenv`
-makes it possible to encapsulate complexity found in configuration
-management, init systems and orchestration systems.
+Xenv provides an executable environment make using configuration
+consistent between development, CI/CD and production. Often times when
+we start working on a project we need to establish some basic
+requirements such as environment variables and standard processes that
+need to be run. These requirements are often duplicated in CI/CD and
+again in production. This is an error prone process that is difficult
+to debug during deployment and when there is a problem.
+
+Xenv solves these sorts of issues by providing a dynamic, yet
+consistent means of managing environment variables, starting
+sidecar / helper processes or performing small pre/post tasks.
 
 ## Usage
 
@@ -58,12 +64,12 @@ Here is an example:
 
 # We can use the environment and write templates using Go's template
 # syntax. This format is similar to consul-template.
-- template: 'foo.conf.tmpl:/etc/foo.conf'
-
-# You can also be explicit
 - template:
-    source: foo.conf.tmpl
-    dest: /etc/foo.conf
+    template: foo.conf.tmpl
+	target: /etc/foo.conf
+	owner: nobody
+	group: nobody
+	mode: 0600
 
 # Call `xenv --config env.yml -- mysvc start` to run the command
 

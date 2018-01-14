@@ -1,0 +1,6 @@
+[service]
+listen = {{ .LISTEN }}
+workers =
+{{- range split " " (.CLUSTER_HOSTS) }}
+   - {{ . }}
+{{- end }}
