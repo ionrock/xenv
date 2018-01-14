@@ -197,6 +197,13 @@ func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 			return err
 		}
 
+	case cfg.Template != nil:
+		cfg.Template.Env = e.Config.Data
+		err := cfg.Template.Execute()
+		if err != nil {
+			return err
+		}
+
 	case cfg.Task != nil:
 		err := e.RunTask(cfg.Task.Name, cfg.Task.Cmd, cfg.Task.Dir)
 		if err != nil {

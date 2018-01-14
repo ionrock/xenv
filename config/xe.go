@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 
 	"github.com/ghodss/yaml"
+	"github.com/ionrock/xenv/templates"
 )
 
 // Service is a service xenv config.
@@ -23,11 +24,12 @@ type XeTask struct {
 // XeConfig is the root of a xenv config and also provides the root of
 // the post in a xenv config.
 type XeConfig struct {
-	Service   *Service          `json:"service"`
-	Env       map[string]string `json:"env"`
-	EnvScript string            `json:"envscript"`
-	Task      *XeTask           `json:"task"`
-	Post      []*XeConfig       `json:"post"`
+	Service   *Service            `json:"service"`
+	Env       map[string]string   `json:"env"`
+	EnvScript string              `json:"envscript"`
+	Task      *XeTask             `json:"task"`
+	Post      []*XeConfig         `json:"post"`
+	Template  *templates.Renderer `json:"template"`
 }
 
 // NewXeConfig parses a path for a *XeConfig.
