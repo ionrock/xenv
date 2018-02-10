@@ -5,17 +5,24 @@
 
 - task:
     name: build web server
-    cmd: 'go build -o examples/web-server examples/server.go'
+    cmd: 'go build -o examples/web-server server.go'
 
 - service:
     name: web-server
-    cmd: ./web-server
+    cmd: examples/web-server
 
 - env:
     foo: bar
     baz: '`cat baz.json | jq -r .baz`'
 
 - envscript: 'curl http://httpbin.org/ip'
+
+- template:
+    template: examples/my.conf.tmpl
+    target: examples/my.conf
+    owner: nobody
+    group: nobody
+    mode: 0600
 
 - task:
     name: apt
