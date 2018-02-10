@@ -6,3 +6,7 @@ test: dep
 
 build: dep
 	go build ./cmd/xenv
+
+
+example: build
+	./xenv --config examples/config.yml echo 'Hi'
