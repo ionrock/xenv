@@ -66,6 +66,7 @@ func (e *Environment) Pre(cfgs []*XeConfig) error {
 
 	for _, cfg := range cfgs {
 		if err := handler(cfg); err != nil {
+			fmt.Printf("error: %s\n", err)
 			return err
 		}
 	}
