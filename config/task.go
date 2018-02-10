@@ -54,7 +54,7 @@ func (t *Task) Run() error {
 	}
 
 	if t.StderrHandler == nil {
-		t.StdoutHandler = t.outhandler
+		t.StderrHandler = t.outhandler
 	}
 	go util.LineReader(wg, stdout, t.StdoutHandler)
 	go util.LineReader(wg, stderr, t.StderrHandler)
