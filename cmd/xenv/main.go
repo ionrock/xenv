@@ -43,15 +43,16 @@ func XeAction(c *cli.Context) error {
 	}
 
 	parts := c.Args()
+	if len(parts) > 0 {
+		fmt.Printf("Going to start: %s\n", parts)
+		cmd := exec.Command(parts[0], parts[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Env = env.Config.ToEnv()
 
-	fmt.Printf("Going to start: %s\n", parts)
-	cmd := exec.Command(parts[0], parts[1:]...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Env = env.Config.ToEnv()
-
-	err = cmd.Run()
+		err = cmd.Run()
+	}
 
 	fmt.Println("running post now")
 	postErr := env.Post()
