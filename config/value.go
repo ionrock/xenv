@@ -17,9 +17,10 @@ import (
 // value. For example, if a command normally would output an extra new
 // line for the terminal, that newline is removed.
 func CompileValue(value, path string, env []string) (string, error) {
-	log.Debug("%#v", value)
+	logCtx := log.WithFields(log.Fields{"value": value})
 
 	if !strings.HasPrefix(value, "`") || !strings.HasSuffix(value, "`") {
+		logCtx.Debug("nothing to execute in value")
 		return value, nil
 	}
 

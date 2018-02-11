@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/config"
 	"github.com/ionrock/xenv/util"
 	"github.com/urfave/cli"
@@ -15,11 +16,20 @@ var gitref = ""
 
 // XeAction runs the main command.
 func XeAction(c *cli.Context) error {
-	fmt.Println("loading " + c.String("config"))
+
+	if c.Bool("debug") {
+		log.SetLevel(log.DebugLevel)
+	}
+
+	logCtx := log.WithFields(log.Fields{
+		"config": c.String("config"),
+	})
+	logCtx.Debug("Loading config")
 
 	cfgs, err := config.NewXeConfig(c.String("config"))
 	if err != nil {
-		fmt.Printf("error loading config: %s\n", err)
+		logCtx.WithFields(log.Fields{"error": err}).Error("error loading config")
+		return err
 	}
 
 	configDir, err := util.AbsDir(c.String("config"))
@@ -87,6 +97,11 @@ func main() {
 		cli.BoolFlag{
 			Name:  "data, d",
 			Usage: "Only compute the data and print it out.",
+		},
+
+		cli.BoolFlag{
+			Name:  "debug, D",
+			Usage: "Print debugging output.",
 		},
 	}
 

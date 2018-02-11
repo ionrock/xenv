@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/manager"
 )
 
@@ -77,9 +78,9 @@ func (e *Environment) Pre(cfgs []*XeConfig) error {
 // Post runs the defined steps after the process exits, no matter the
 // exit status of the command.
 func (e *Environment) Post() error {
-	fmt.Println(fmt.Sprintf("post value: %#v", e.post))
 	err := e.StopServices()
 	if err != nil {
+		panic(err)
 		return err
 	}
 
@@ -229,6 +230,10 @@ func (e *Environment) StopServices() error {
 	for name := range e.Services.Processes {
 		err := e.Services.Stop(name)
 		if err != nil {
+			log.WithFields(log.Fields{
+				"service_name": name,
+				"error":        err,
+			}).Error("problem stopping service")
 			return err
 		}
 	}

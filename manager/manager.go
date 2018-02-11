@@ -105,7 +105,13 @@ func (m *Manager) Stop(name string) error {
 		return nil
 	}
 
-	return cmd.Terminate(syscall.SIGKILL)
+	err := cmd.Terminate(syscall.SIGKILL)
+	if err != nil {
+		fmt.Println("Unable to kill process")
+		return err
+	}
+
+	return nil
 }
 
 // Remove will try to stop and remove a managed process.
