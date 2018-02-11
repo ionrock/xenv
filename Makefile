@@ -9,4 +9,4 @@ build: dep
 
 
 example: build
-	./xenv --config examples/config.yml echo 'Hi'
+	./xenv --debug --config examples/config.yml echo 'Hi'
