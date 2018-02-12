@@ -9,4 +9,4 @@ build: dep
 
 
 example: build
-	./xenv --debug --config examples/config.yml echo 'Hi'
+	./xenv --debug --config examples/config.yml sleep 60
