@@ -20,7 +20,6 @@ func CompileValue(value, path string, env []string) (string, error) {
 	logCtx := log.WithFields(log.Fields{"value": value})
 
 	if !strings.HasPrefix(value, "`") || !strings.HasSuffix(value, "`") {
-		logCtx.Debug("nothing to execute in value")
 		return value, nil
 	}
 
@@ -34,6 +33,8 @@ func CompileValue(value, path string, env []string) (string, error) {
 	if len(env) > 0 {
 		cmd.Env = env
 	}
+
+	logCtx.Debug("executing value")
 
 	buf, err := cmd.Output()
 	if err != nil {

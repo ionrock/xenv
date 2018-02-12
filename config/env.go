@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/codeskyblue/kexec"
 	"github.com/ionrock/xenv/manager"
 )
 
@@ -67,7 +70,9 @@ func (e *Environment) Pre(cfgs []*XeConfig) error {
 
 	for _, cfg := range cfgs {
 		if err := handler(cfg); err != nil {
-			fmt.Printf("error: %s\n", err)
+			log.WithError(err).WithFields(log.Fields{
+				"config": cfg,
+			}).Warn("error running config")
 			return err
 		}
 	}
@@ -104,7 +109,9 @@ func (e *Environment) SetEnv(k, v string) error {
 	v = os.Expand(v, e.Config.GetConfig)
 	val, err := CompileValue(v, e.ConfigDir, e.Config.ToEnv())
 	if err != nil {
-		fmt.Printf("error getting value for env: %q %q\n", v, err)
+		log.WithFields(log.Fields{
+			"value": v,
+		}).WithError(err).Warn("error getting value for env")
 		return err
 	}
 	e.Config.Set(k, val)
@@ -240,3 +247,104 @@ func (e *Environment) StopServices() error {
 
 	return nil
 }
+
+// Main runs the configuration items, the main process and any post processes.
+func (e *Environment) Main(configDir string, cfgs []*XeConfig, parts []string) (err error) {
+	err = e.Pre(cfgs)
+	if err != nil {
+		return err
+	}
+
+	// Main loop starting up the process and waiting for any restart
+	// events due to data changes.
+	for {
+		if len(parts) == 0 {
+			break
+		}
+
+		log.Infof("Going to start: %s", parts)
+		cmd := kexec.Command(parts[0])
+		if len(parts) > 1 {
+			cmd.Args = append(cmd.Args, parts[1:]...)
+		}
+		cmd.Env = e.Config.ToEnv()
+
+		// Start our process
+		procDone := make(chan error)
+		go func() {
+			// NOTE: We might want to do something smarter with the output for
+			// shipping logs or just capturing it for use.
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
+			procDone <- cmd.Run()
+		}()
+
+		events := make(chan struct{})
+		go func() {
+			cadence := time.NewTicker(10 * time.Second)
+			for range cadence.C {
+				ne := NewEnvironment(configDir)
+				ne.DataOnly = true
+				err := ne.Pre(cfgs)
+				if err != nil {
+					log.WithError(err).Warn("error rebuilding config data")
+					continue
+				}
+
+				// compare the envs
+				newEnv := ne.Config.ToEnv()
+				for i, v := range newEnv {
+					if cmd.Env[i] != v {
+						events <- restartEvent{}
+					}
+				}
+			}
+		}()
+
+		finished := false
+		for {
+			select {
+			case err = <-procDone:
+				if err != nil {
+					log.WithError(err).Warn("process exit error")
+				}
+				finished = true
+				break
+			case <-events:
+				log.Info("configuration data changed. restarting")
+				err := cmd.Terminate(syscall.SIGINT)
+				if err != nil {
+					log.WithError(err).Warn("Unable to kill process")
+					finished = true
+				}
+
+				// Wait for the process to exit
+				<-procDone
+
+				// This just exits this loop without setting finished,
+				// which will restart the process.
+				break
+			}
+
+			if finished {
+				break
+			}
+		}
+
+		if finished {
+			break
+		}
+	}
+
+	fmt.Println("running post now")
+	postErr := e.Post()
+	if postErr != nil {
+		fmt.Printf("Error running post: %s\n", postErr)
+	}
+
+	return err
+
+}
+
+type restartEvent struct{}

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -48,6 +49,7 @@ func (c *Config) ToEnv() []string {
 		envlist = append(envlist, fmt.Sprintf("%s=%s", key, val))
 	}
 
+	sort.Strings(envlist)
 	return envlist
 }
 

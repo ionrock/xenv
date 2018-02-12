@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/config"
@@ -40,41 +39,18 @@ func XeAction(c *cli.Context) error {
 	env := config.NewEnvironment(configDir)
 	env.DataOnly = c.Bool("data")
 
-	err = env.Pre(cfgs)
-	if err != nil {
-		return err
-	}
-
 	if c.Bool("data") {
+		err = env.Pre(cfgs)
+		if err != nil {
+			return err
+		}
 		for _, pair := range env.Config.ToEnv() {
 			fmt.Println(pair)
 		}
 		return nil
 	}
 
-	parts := c.Args()
-	if len(parts) > 0 {
-		fmt.Printf("Going to start: %s\n", parts)
-		cmd := exec.Command(parts[0], parts[1:]...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Env = env.Config.ToEnv()
-
-		err = cmd.Run()
-	}
-
-	fmt.Println("running post now")
-	postErr := env.Post()
-	if postErr != nil {
-		fmt.Printf("Error running post: %s\n", postErr)
-	}
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return env.Main(configDir, cfgs, c.Args())
 }
 
 func main() {

@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"syscall"
@@ -58,6 +59,11 @@ func (m *Manager) Start(name, command, dir string, env []string) error {
 
 // StartProcess starts and manages a predifined process.
 func (m *Manager) StartProcess(name string, cmd *kexec.KCommand) error {
+	return m.StartProcessWithHandlers(name, cmd, m.StdoutHandler(name), m.StderrHandler(name))
+}
+
+// StartProcessWithHandlers
+func (m *Manager) StartProcessWithHandlers(name string, cmd *kexec.KCommand, o, e util.OutHandler) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -77,8 +83,8 @@ func (m *Manager) StartProcess(name string, cmd *kexec.KCommand) error {
 	wg.Add(2)
 
 	// These close the stdout/err channels
-	go util.LineReader(wg, stdout, m.StdoutHandler(name))
-	go util.LineReader(wg, stderr, m.StderrHandler(name))
+	go util.LineReader(wg, stdout, o)
+	go util.LineReader(wg, stderr, e)
 
 	err = cmd.Start()
 	if err != nil {
@@ -89,6 +95,7 @@ func (m *Manager) StartProcess(name string, cmd *kexec.KCommand) error {
 	m.pipeWaits[name] = wg
 
 	return nil
+
 }
 
 // Stop will try to stop a managed process. If the process does not
@@ -146,4 +153,14 @@ func (m *Manager) Wait() error {
 	wg.Wait()
 
 	return nil
+}
+
+// WaifFor will wait on a specific process by name
+func (m *Manager) WaitFor(name string) error {
+	cmd, ok := m.Processes[name]
+	if !ok {
+		return errors.New("missing process")
+	}
+
+	return cmd.Wait()
 }
