@@ -3,9 +3,12 @@ package manager
 import (
 	"errors"
 	"fmt"
+	"os"
+	"os/signal"
 	"sync"
 	"syscall"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/codeskyblue/kexec"
 	"github.com/ionrock/xenv/util"
 )
@@ -25,6 +28,30 @@ func New() *Manager {
 		pipeWaits: make(map[string]*sync.WaitGroup),
 	}
 
+}
+
+func (m *Manager) HandleSignals() {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		sig := <-sigs
+		for n, p := range m.Processes {
+			err := p.Terminate(sig)
+			if err != nil {
+				log.WithFields(log.Fields{
+					"name":    n,
+					"process": p.Process.Pid,
+					"signal":  sig,
+				}).WithError(err).Warn("error sending signal")
+			}
+		}
+		done <- true
+	}()
+
+	<-done
 }
 
 // StdoutHandler returns an OutHandler that will ensure the underlying
@@ -143,6 +170,7 @@ func (m *Manager) Wait() error {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(m.Processes))
 
+	done := make(chan bool)
 	for _, cmd := range m.Processes {
 		go func(cmd *kexec.KCommand) {
 			defer wg.Done()
@@ -150,7 +178,17 @@ func (m *Manager) Wait() error {
 		}(cmd)
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		done <- true
+	}()
+
+	go func() {
+		m.HandleSignals()
+		done <- true
+	}()
+
+	<-done
 
 	return nil
 }

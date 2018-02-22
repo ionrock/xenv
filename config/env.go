@@ -12,6 +12,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	"github.com/codeskyblue/kexec"
 	"github.com/ionrock/xenv/manager"
+	"github.com/ionrock/xenv/util"
 )
 
 func findLongestServiceName(cfgs []*XeConfig) int {
@@ -44,7 +45,8 @@ type Environment struct {
 
 	// ConfigDir is the directory where the config file is in order to
 	// provide a base for tasks / services.
-	ConfigDir string
+	ConfigDir  string
+	ConfigFile string
 
 	DataOnly bool
 	post     []*XeConfig
@@ -52,17 +54,34 @@ type Environment struct {
 
 // NewEnvironment creates a new *Environment rooted at the provided
 // directory.
-func NewEnvironment(cfgDir string) *Environment {
+func NewEnvironment() *Environment {
 	return &Environment{
-		Services:  manager.New(),
-		Tasks:     make(map[string]*exec.Cmd),
-		Config:    &Config{make(map[string]string)},
-		ConfigDir: cfgDir,
+		Services: manager.New(),
+		Tasks:    make(map[string]*exec.Cmd),
+		Config:   &Config{make(map[string]string)},
 	}
 }
 
+// NewEnvironmentFromConfig
+func NewEnvironmentFromConfig(cfgFile string) (*Environment, error) {
+	cfgDir, err := util.AbsDir(cfgFile)
+	if err != nil {
+		return nil, err
+	}
+
+	env := NewEnvironment()
+	env.ConfigDir = cfgDir
+	env.ConfigFile = cfgFile
+	return env, nil
+}
+
 // Pre runs the defined steps before the specified command.
-func (e *Environment) Pre(cfgs []*XeConfig) error {
+func (e *Environment) Pre() error {
+	cfgs, err := e.Load()
+	if err != nil {
+		return err
+	}
+
 	handler := e.ConfigHandler
 	if e.DataOnly {
 		handler = e.DataHandler
@@ -114,6 +133,9 @@ func (e *Environment) SetEnv(k, v string) error {
 		}).WithError(err).Warn("error getting value for env")
 		return err
 	}
+	log.WithFields(log.Fields{
+		"key": k, "value": v,
+	}).Debug("setting value")
 	e.Config.Set(k, val)
 	return nil
 }
@@ -248,45 +270,67 @@ func (e *Environment) StopServices() error {
 	return nil
 }
 
-// Main runs the configuration items, the main process and any post processes.
-func (e *Environment) Main(configDir string, cfgs []*XeConfig, parts []string) (err error) {
-	err = e.Pre(cfgs)
+func (e *Environment) Load() ([]*XeConfig, error) {
+	log.Debugf("loading %s", e.ConfigFile)
+	cfgs, err := NewXeConfig(e.ConfigFile)
 	if err != nil {
-		return err
+		log.WithFields(log.Fields{
+			"config_file": e.ConfigFile,
+			"config_dir":  e.ConfigDir,
+		}).WithError(err).Error("error loading config")
+		return nil, err
 	}
+	return cfgs, nil
+}
 
+// Main runs the configuration items, the main process and any post processes.
+func (e *Environment) Main(parts []string) (err error) {
 	// Main loop starting up the process and waiting for any restart
 	// events due to data changes.
 	for {
+		err = e.Pre()
+		if err != nil {
+			return err
+		}
+
 		if len(parts) == 0 {
 			break
 		}
 
 		log.Infof("Going to start: %s", parts)
+
 		cmd := kexec.Command(parts[0])
 		if len(parts) > 1 {
 			cmd.Args = append(cmd.Args, parts[1:]...)
 		}
 		cmd.Env = e.Config.ToEnv()
 
-		// Start our process
+		e.Services.StartProcess("__main__", cmd)
+
+		// Start our process and listen for signals
 		procDone := make(chan error)
 		go func() {
-			// NOTE: We might want to do something smarter with the output for
-			// shipping logs or just capturing it for use.
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			e.Services.HandleSignals()
+			procDone <- nil
+		}()
 
-			procDone <- cmd.Run()
+		go func() {
+			procDone <- e.Services.WaitFor("__main__")
 		}()
 
 		events := make(chan struct{})
+		cadence := time.NewTicker(10 * time.Second)
+
 		go func() {
-			cadence := time.NewTicker(10 * time.Second)
 			for range cadence.C {
-				ne := NewEnvironment(configDir)
+				ne, err := NewEnvironmentFromConfig(e.ConfigFile)
+				if err != nil {
+					log.WithError(err).Warn("error rebuilding config data")
+					continue
+				}
+
 				ne.DataOnly = true
-				err := ne.Pre(cfgs)
+				err = ne.Pre()
 				if err != nil {
 					log.WithError(err).Warn("error rebuilding config data")
 					continue
@@ -294,8 +338,14 @@ func (e *Environment) Main(configDir string, cfgs []*XeConfig, parts []string) (
 
 				// compare the envs
 				newEnv := ne.Config.ToEnv()
+				oldEnv := e.Config.ToEnv()
+
+				if len(newEnv) != len(oldEnv) {
+					events <- restartEvent{}
+				}
+
 				for i, v := range newEnv {
-					if cmd.Env[i] != v {
+					if oldEnv[i] != v {
 						events <- restartEvent{}
 					}
 				}
@@ -317,6 +367,7 @@ func (e *Environment) Main(configDir string, cfgs []*XeConfig, parts []string) (
 				if err != nil {
 					log.WithError(err).Warn("Unable to kill process")
 					finished = true
+					break
 				}
 
 				// Wait for the process to exit
@@ -333,6 +384,7 @@ func (e *Environment) Main(configDir string, cfgs []*XeConfig, parts []string) (
 		}
 
 		if finished {
+			cadence.Stop()
 			break
 		}
 	}

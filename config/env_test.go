@@ -11,7 +11,7 @@ import (
 )
 
 func TestDataHandler(t *testing.T) {
-	e := config.NewEnvironment(".")
+	e := config.NewEnvironment()
 
 	e.DataHandler(&config.XeConfig{Env: map[string]string{"FOO": "foo"}})
 
@@ -59,7 +59,7 @@ func TestScriptEnvInjected(t *testing.T) {
 }
 
 func TestSetEnv(t *testing.T) {
-	e := config.NewEnvironment(".")
+	e := config.NewEnvironment()
 
 	// Set bar to a value we'll use in our script to ensure that our
 	// config is linearly applied throughout the processing.
@@ -90,7 +90,7 @@ func TestSetEnv(t *testing.T) {
 }
 
 func TestTaskGetsEnv(t *testing.T) {
-	e := config.NewEnvironment(".")
+	e := config.NewEnvironment()
 	e.SetEnv("GO_WANT_HELPER_PROCESS", "1")
 	e.SetEnv("ENV_INJECTED", "true")
 
@@ -103,7 +103,7 @@ func TestTaskGetsEnv(t *testing.T) {
 }
 
 func TestSetEnvFromScriptExpandsVars(t *testing.T) {
-	e := config.NewEnvironment(".")
+	e := config.NewEnvironment()
 	e.SetEnv("GREETING", "world")
 	err := e.SetEnvFromScript("cat testdata/script_out_with_vars.yml", ".")
 	if err != nil {

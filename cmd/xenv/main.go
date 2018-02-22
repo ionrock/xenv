@@ -6,7 +6,6 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/config"
-	"github.com/ionrock/xenv/util"
 	"github.com/urfave/cli"
 )
 
@@ -24,23 +23,15 @@ func XeAction(c *cli.Context) error {
 		"config": c.String("config"),
 	})
 	logCtx.Debug("Loading config")
-
-	cfgs, err := config.NewXeConfig(c.String("config"))
+	env, err := config.NewEnvironmentFromConfig(c.String("config"))
 	if err != nil {
 		logCtx.WithFields(log.Fields{"error": err}).Error("error loading config")
 		return err
 	}
-
-	configDir, err := util.AbsDir(c.String("config"))
-	if err != nil {
-		return err
-	}
-
-	env := config.NewEnvironment(configDir)
 	env.DataOnly = c.Bool("data")
 
 	if c.Bool("data") {
-		err = env.Pre(cfgs)
+		err = env.Pre()
 		if err != nil {
 			return err
 		}
@@ -50,7 +41,7 @@ func XeAction(c *cli.Context) error {
 		return nil
 	}
 
-	return env.Main(configDir, cfgs, c.Args())
+	return env.Main(c.Args())
 }
 
 func main() {
