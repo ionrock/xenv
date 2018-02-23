@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -127,15 +126,18 @@ func (e *Environment) StartService(name, command, dir string) error {
 func (e *Environment) SetEnv(k, v string) error {
 	v = os.Expand(v, e.Config.GetConfig)
 	val, err := CompileValue(v, e.ConfigDir, e.Config.ToEnv())
+
 	if err != nil {
 		log.WithFields(log.Fields{
 			"value": v,
 		}).WithError(err).Warn("error getting value for env")
 		return err
 	}
+
 	log.WithFields(log.Fields{
 		"key": k, "value": v,
 	}).Debug("setting value")
+
 	e.Config.Set(k, val)
 	return nil
 }
@@ -337,17 +339,16 @@ func (e *Environment) Main(parts []string) (err error) {
 				}
 
 				// compare the envs
-				newEnv := ne.Config.ToEnv()
-				oldEnv := e.Config.ToEnv()
-
-				if len(newEnv) != len(oldEnv) {
-					events <- restartEvent{}
-				}
-
-				for i, v := range newEnv {
-					if oldEnv[i] != v {
-						events <- restartEvent{}
+				diff := e.Config.Diff(ne.Config)
+				if diff != nil {
+					logCtx := log.WithFields(log.Fields{"diff": true})
+					for k, v := range diff.Data {
+						logCtx = logCtx.WithFields(log.Fields{
+							k: v,
+						})
 					}
+					logCtx.Debug("env updated")
+					events <- restartEvent{}
 				}
 			}
 		}()
@@ -363,15 +364,14 @@ func (e *Environment) Main(parts []string) (err error) {
 				break
 			case <-events:
 				log.Info("configuration data changed. restarting")
-				err := cmd.Terminate(syscall.SIGINT)
+				fmt.Printf("pid: %s\n", cmd.Process.Pid)
+
+				err := e.Services.Stop("__main__")
 				if err != nil {
-					log.WithError(err).Warn("Unable to kill process")
+					log.WithError(err).Warn("error stopping service")
 					finished = true
 					break
 				}
-
-				// Wait for the process to exit
-				<-procDone
 
 				// This just exits this loop without setting finished,
 				// which will restart the process.
