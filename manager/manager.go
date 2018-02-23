@@ -139,9 +139,9 @@ func (m *Manager) Stop(name string) error {
 		return nil
 	}
 
-	err := cmd.Terminate(syscall.SIGKILL)
+	err := cmd.Terminate(syscall.SIGINT)
 	if err != nil {
-		fmt.Println("Unable to kill process")
+		fmt.Println("Unable to term process")
 		return err
 	}
 
