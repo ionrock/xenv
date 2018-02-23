@@ -73,3 +73,28 @@ func (c *Config) Environ() []string {
 
 	return envlist
 }
+
+func (c *Config) Diff(o *Config) *Config {
+	diff := &Config{make(map[string]string)}
+
+	compareConfigs(c, o, diff)
+	compareConfigs(o, c, diff)
+
+	if len(diff.Data) > 0 {
+		return diff
+	}
+
+	return nil
+}
+
+func compareConfigs(a, b, diff *Config) {
+	for key, val := range a.Data {
+		otherVal, ok := b.Get(key)
+		if !ok {
+			diff.Set(key, val)
+		}
+		if otherVal != val {
+			diff.Set(key, otherVal)
+		}
+	}
+}
