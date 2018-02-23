@@ -3,9 +3,11 @@
 package config
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -81,13 +83,8 @@ func (e *Environment) Pre() error {
 		return err
 	}
 
-	handler := e.ConfigHandler
-	if e.DataOnly {
-		handler = e.DataHandler
-	}
-
 	for _, cfg := range cfgs {
-		if err := handler(cfg); err != nil {
+		if err := e.ConfigHandler(cfg); err != nil {
 			log.WithError(err).WithFields(log.Fields{
 				"config": cfg,
 			}).Warn("error running config")
@@ -101,12 +98,11 @@ func (e *Environment) Pre() error {
 // Post runs the defined steps after the process exits, no matter the
 // exit status of the command.
 func (e *Environment) Post() error {
-	err := e.StopServices()
-	if err != nil {
-		panic(err)
-		return err
+	if len(e.post) == 0 {
+		return nil
 	}
 
+	log.Info("Running Post Events")
 	for _, cfg := range e.post {
 		// We don't worry about using a data handler here.
 		if err := e.ConfigHandler(cfg); err != nil {
@@ -117,9 +113,19 @@ func (e *Environment) Post() error {
 	return nil
 }
 
-// StartService starts a process with the process manager in the environment.
-func (e *Environment) StartService(name, command, dir string) error {
-	return e.Services.Start(name, command, dir, e.Config.ToEnv())
+// SetEnvFromEnvvars sets environment values from a list of key value
+// pairs ([]map[string]string).
+func (e *Environment) SetEnvFromEnvvars(envvars []map[string]string) error {
+	for _, m := range envvars {
+		for k, v := range m {
+			err := e.SetEnv(k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // SetEnv sets an environment value.
@@ -184,43 +190,14 @@ func (e *Environment) RunTask(name, command, dir string) error {
 	return t.Run()
 }
 
-// DataHandler only responds to items that update the data. This is
-// used for debugging configurations.
-func (e *Environment) DataHandler(cfg *XeConfig) error {
-	switch {
-	case cfg.Env != nil:
-		for k, v := range cfg.Env {
-			err := e.SetEnv(k, v)
-			return err
-		}
-
-	case cfg.EnvScript != "":
-		err := e.SetEnvFromScript(cfg.EnvScript, e.ConfigDir)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // ConfigHandler calls the respective handler actionss based on the
-// passed in XeConfig. It is assumed the XeConfig will only have 1 field in its struct filled in.
+// passed in XeConfig. It is assumed the XeConfig will only have 1 field
+// in its struct filled in.
 func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 	switch {
-	case cfg.Service != nil:
-		if cfg.Service.Dir == "" {
-			cfg.Service.Dir = e.ConfigDir
-		}
-
-		err := e.StartService(cfg.Service.Name, cfg.Service.Cmd, cfg.Service.Dir)
-		if err != nil {
-			return err
-		}
-
 	case cfg.Env != nil:
-		for k, v := range cfg.Env {
-			err := e.SetEnv(k, v)
+		err := e.SetEnvFromEnvvars(cfg.Env)
+		if err != nil {
 			return err
 		}
 
@@ -230,14 +207,14 @@ func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 			return err
 		}
 
-	case cfg.Template != nil:
+	case cfg.Template != nil && !e.DataOnly:
 		cfg.Template.Env = e.Config.Data
 		err := cfg.Template.Execute()
 		if err != nil {
 			return err
 		}
 
-	case cfg.Task != nil:
+	case cfg.Task != nil && !e.DataOnly:
 		err := e.RunTask(cfg.Task.Name, cfg.Task.Cmd, cfg.Task.Dir)
 		if err != nil {
 			return err
@@ -285,118 +262,119 @@ func (e *Environment) Load() ([]*XeConfig, error) {
 	return cfgs, nil
 }
 
-// Main runs the configuration items, the main process and any post processes.
-func (e *Environment) Main(parts []string) (err error) {
-	// Main loop starting up the process and waiting for any restart
-	// events due to data changes.
-	for {
-		err = e.Pre()
+func (e *Environment) watchSignals(done chan error, cmd *kexec.KCommand) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		err := cmd.Terminate(sig)
 		if err != nil {
+			log.WithError(err).Warn("error sending signal")
+		}
+		done <- err
+	}()
+}
+
+func (e *Environment) watchConfig(cadence *time.Ticker, events chan struct{}) {
+	go func() {
+		for range cadence.C {
+			ne, err := NewEnvironmentFromConfig(e.ConfigFile)
+			if err != nil {
+				log.WithError(err).Warn("error rebuilding config data")
+				continue
+			}
+
+			ne.DataOnly = true
+			err = ne.Pre()
+			if err != nil {
+				log.WithError(err).Warn("error rebuilding config data")
+				continue
+			}
+
+			// compare the envs
+			diff := e.Config.Diff(ne.Config)
+			if diff != nil {
+				fields := log.Fields{}
+				for k, v := range diff.Data {
+					fields[k] = v
+				}
+				log.WithFields(fields).Debug("env diff")
+				events <- restartEvent{}
+			}
+		}
+	}()
+
+}
+
+func (e *Environment) wait(cmd *kexec.KCommand, done chan error, events chan struct{}) error {
+	for {
+		select {
+		case err := <-done:
+			if err != nil {
+				log.WithError(err).Warn("process exit error")
+			}
 			return err
-		}
+		case <-events:
+			log.Info("Configuration data changed. Exiting...")
 
-		if len(parts) == 0 {
-			break
-		}
-
-		log.Infof("Going to start: %s", parts)
-
-		cmd := kexec.Command(parts[0])
-		if len(parts) > 1 {
-			cmd.Args = append(cmd.Args, parts[1:]...)
-		}
-		cmd.Env = e.Config.ToEnv()
-
-		e.Services.StartProcess("__main__", cmd)
-
-		// Start our process and listen for signals
-		procDone := make(chan error)
-		go func() {
-			e.Services.HandleSignals()
-			procDone <- nil
-		}()
-
-		go func() {
-			procDone <- e.Services.WaitFor("__main__")
-		}()
-
-		events := make(chan struct{})
-		cadence := time.NewTicker(10 * time.Second)
-
-		go func() {
-			for range cadence.C {
-				ne, err := NewEnvironmentFromConfig(e.ConfigFile)
-				if err != nil {
-					log.WithError(err).Warn("error rebuilding config data")
-					continue
-				}
-
-				ne.DataOnly = true
-				err = ne.Pre()
-				if err != nil {
-					log.WithError(err).Warn("error rebuilding config data")
-					continue
-				}
-
-				// compare the envs
-				diff := e.Config.Diff(ne.Config)
-				if diff != nil {
-					logCtx := log.WithFields(log.Fields{"diff": true})
-					for k, v := range diff.Data {
-						logCtx = logCtx.WithFields(log.Fields{
-							k: v,
-						})
+			err := cmd.Terminate(syscall.SIGINT)
+			if err != nil {
+				log.WithError(err).Warn("error stopping process")
+				if cmd.ProcessState == nil {
+					err = cmd.Terminate(syscall.SIGTERM)
+					if err != nil {
+						log.WithError(err).Warn("error killing process")
 					}
-					logCtx.Debug("env updated")
-					events <- restartEvent{}
 				}
 			}
-		}()
-
-		finished := false
-		for {
-			select {
-			case err = <-procDone:
-				if err != nil {
-					log.WithError(err).Warn("process exit error")
-				}
-				finished = true
-				break
-			case <-events:
-				log.Info("configuration data changed. restarting")
-				fmt.Printf("pid: %s\n", cmd.Process.Pid)
-
-				err := e.Services.Stop("__main__")
-				if err != nil {
-					log.WithError(err).Warn("error stopping service")
-					finished = true
-					break
-				}
-
-				// This just exits this loop without setting finished,
-				// which will restart the process.
-				break
-			}
-
-			if finished {
-				break
-			}
-		}
-
-		if finished {
-			cadence.Stop()
-			break
+			return err
 		}
 	}
 
-	fmt.Println("running post now")
+	return nil
+}
+
+// Main runs the configuration items, the main process and any post processes.
+func (e *Environment) Main(parts []string) (err error) {
+	err = e.Pre()
+	if err != nil {
+		return err
+	}
+
+	if len(parts) == 0 {
+		return nil
+	}
+
+	log.Infof("Running command: %s", strings.Join(parts, " "))
+
+	cmd := kexec.Command(parts[0])
+	if len(parts) > 1 {
+		cmd.Args = append(cmd.Args, parts[1:]...)
+	}
+	cmd.Env = e.Config.ToEnv()
+
+	// Start our process and listen for signals
+	done := make(chan error)
+	e.watchSignals(done, cmd)
+
+	go func() {
+		done <- cmd.Run()
+	}()
+
+	events := make(chan struct{})
+	cadence := time.NewTicker(10 * time.Second)
+	defer cadence.Stop()
+
+	e.watchConfig(cadence, events)
+
+	err = e.wait(cmd, done, events)
+
 	postErr := e.Post()
 	if postErr != nil {
-		fmt.Printf("Error running post: %s\n", postErr)
+		log.WithError(postErr).Warn("Error running post")
 	}
 
 	return err
-
 }
 
 type restartEvent struct{}

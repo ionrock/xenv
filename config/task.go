@@ -1,10 +1,10 @@
 package config
 
 import (
-	"fmt"
 	"os/exec"
 	"sync"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/ionrock/xenv/util"
 )
 
@@ -32,29 +32,41 @@ func (t *Task) Run() error {
 	cmd.Dir = t.Dir
 	cmd.Env = t.Env
 
-	fmt.Println("Running Task: " + t.Name)
+	name := t.Name
+	if name == "" {
+		name = t.Cmd
+	}
+	taskLog := log.WithFields(log.Fields{"name": name})
+
+	taskLog.Info("Running Task")
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		fmt.Printf("error creating stdout pipe: %s\n", err)
+		log.WithError(err).Printf("error creating stdout pipe")
 		return err
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		fmt.Printf("error creating stderr pipe: %s\n", err)
+		log.WithError(err).Printf("error creating stderr pipe")
 		return err
 	}
 
 	wg := new(sync.WaitGroup)
 	wg.Add(2)
 
+	outhandler := func(line string) string {
+		taskLog.Info(line)
+		return line
+	}
+
 	// These close the stdout/err channels
 	if t.StdoutHandler == nil {
-		t.StdoutHandler = t.outhandler
+		t.StdoutHandler = outhandler
 	}
 
 	if t.StderrHandler == nil {
-		t.StderrHandler = t.outhandler
+		t.StderrHandler = outhandler
 	}
 	go util.LineReader(wg, stdout, t.StdoutHandler)
 	go util.LineReader(wg, stderr, t.StderrHandler)
@@ -67,9 +79,4 @@ func (t *Task) Run() error {
 	wg.Wait()
 
 	return cmd.Wait()
-}
-
-func (t *Task) outhandler(line string) string {
-	fmt.Printf("%s | %s\n", t.Name, line)
-	return line
 }

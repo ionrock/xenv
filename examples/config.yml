@@ -1,18 +1,13 @@
 ---
-- env:
-    PATH: $PATH
-
 - task:
-    name: build web server
-    cmd: 'go build -o web-server server.go'
-
-- service:
-    name: sleeper
-    cmd: sleep 60
+    name: Start up task
+    cmd: echo 'Starting up!'
 
 - env:
-    foo: bar
-    baz: '`cat baz.json | jq -r .baz`'
+    - foo: bar
+    - baz: '`cat baz.json | jq -r .baz`'
+    - greeting: eric
+    - hello: $greeting
 
 - envscript: 'curl http://httpbin.org/ip'
 
@@ -23,12 +18,7 @@
     group: nobody
     mode: 0600
 
-- task:
-    name: apt
-    cmd: 'echo "apt get updating..."'
-    dir: '/tmp'
-
 - post:
     - task:
-        name: saying done
-        cmd: 'echo "finished"'
+        name: Finish task
+        cmd: 'echo "All Done!"'

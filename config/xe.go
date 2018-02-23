@@ -21,11 +21,10 @@ type XeTask struct {
 	Dir  string `json:"dir"`
 }
 
-// XeConfig is the root of a xenv config and also provides the root of
 // the post in a xenv config.
 type XeConfig struct {
 	Service   *Service            `json:"service"`
-	Env       map[string]string   `json:"env"`
+	Env       []map[string]string `json:"env"`
 	EnvScript string              `json:"envscript"`
 	Task      *XeTask             `json:"task"`
 	Post      []*XeConfig         `json:"post"`
