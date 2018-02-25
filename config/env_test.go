@@ -10,16 +10,6 @@ import (
 	"github.com/ionrock/xenv/config"
 )
 
-func TestDataHandler(t *testing.T) {
-	e := config.NewEnvironment()
-
-	e.DataHandler(&config.XeConfig{Env: map[string]string{"FOO": "foo"}})
-
-	if _, ok := e.Config.Get("FOO"); !ok {
-		t.Error("error mapping EnvScript to data")
-	}
-}
-
 func scriptCmd(name string, s ...string) []string {
 	cmd := []string{os.Args[0], fmt.Sprintf("-test.run=%s", name)}
 	if len(s) == 0 {
