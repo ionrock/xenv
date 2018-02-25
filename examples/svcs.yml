@@ -1,0 +1,6 @@
+---
+- name: web-server
+  cmd: examples/httpd
+
+- name: flapper
+  cmd: sleep 2

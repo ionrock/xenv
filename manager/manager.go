@@ -58,8 +58,10 @@ func (m *Manager) HandleSignals() {
 // process has an empty stdout buffer and logs to stdout a prefixed value
 // of "$name | $line".
 func (m *Manager) StdoutHandler(name string) util.OutHandler {
+	logCtx := log.WithFields(log.Fields{"name": name})
 	return func(line string) string {
-		fmt.Printf("%s | %s\n", name, line)
+		logCtx.Info(line)
+		// fmt.Printf("%s | %s\n", name, line)
 		return ""
 	}
 }
@@ -68,8 +70,10 @@ func (m *Manager) StdoutHandler(name string) util.OutHandler {
 // process has an empty stderr buffer and logs to stdout a prefixed value
 // of "$name | $line".
 func (m *Manager) StderrHandler(name string) util.OutHandler {
+	logCtx := log.WithFields(log.Fields{"name": name})
 	return func(line string) string {
-		fmt.Printf("%s | %s\n", name, line)
+		logCtx.Error(line)
+		// fmt.Printf("%s | %s\n", name, line)
 		return ""
 	}
 }
@@ -201,4 +205,57 @@ func (m *Manager) WaitFor(name string) error {
 	}
 
 	return cmd.Wait()
+}
+
+// Watch will watch any processes for exit and restart them.
+func (m *Manager) Watch() error {
+	sigs := make(chan os.Signal, 1)
+	done := make(chan bool, 1)
+
+	signal.Notify(sigs, os.Interrupt, os.Kill)
+
+	go func() {
+		<-sigs
+		for n, _ := range m.Processes {
+			log.WithField("name", n).Info("stopping process")
+			m.Stop(n)
+		}
+		done <- true
+	}()
+
+	// Start watchers for restart
+	for n, p := range m.Processes {
+		go func(n string, p *kexec.KCommand) {
+			for {
+				err := p.Wait()
+				if err != nil {
+					log.WithError(err).Info("error in process")
+				}
+
+				np := kexec.Command(p.Path)
+				np.Args = p.Args
+				np.Dir = p.Dir
+				np.Env = p.Env
+
+				log.Infof("restarting %s", n)
+				err = m.StartProcess(n, np)
+				if err != nil {
+					log.WithError(err).WithFields(log.Fields{
+						"np":   np.Path,
+						"args": np.Args,
+						"dir":  np.Dir,
+					}).Warn("error restarting process")
+					break
+				}
+
+				// pun intended...
+				p = np
+			}
+		}(n, p)
+	}
+
+	<-done
+
+	// TODO: should wrap up all the child process errors.
+	return nil
 }
