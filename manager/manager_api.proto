@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package manager;
+
+service SvcsManager {
+  rpc Start (SvcProcess) returns (SvcResult) {}
+  rpc Stop (SvcProcess) returns (SvcResult) {}
+  rpc Restart (SvcProcess) returns (SvcResult) {}
+}
+
+message SvcProcess {
+  string name = 1;
+}
+
+message SvcResult {
+  string output = 1;
+}
