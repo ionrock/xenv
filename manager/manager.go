@@ -61,7 +61,6 @@ func (m *Manager) StdoutHandler(name string) util.OutHandler {
 	logCtx := log.WithFields(log.Fields{"name": name})
 	return func(line string) string {
 		logCtx.Info(line)
-		// fmt.Printf("%s | %s\n", name, line)
 		return ""
 	}
 }
@@ -73,7 +72,6 @@ func (m *Manager) StderrHandler(name string) util.OutHandler {
 	logCtx := log.WithFields(log.Fields{"name": name})
 	return func(line string) string {
 		logCtx.Error(line)
-		// fmt.Printf("%s | %s\n", name, line)
 		return ""
 	}
 }
@@ -132,6 +130,9 @@ func (m *Manager) StartProcessWithHandlers(name string, cmd *kexec.KCommand, o, 
 // Stop will try to stop a managed process. If the process does not
 // exist, no error is returned.
 func (m *Manager) Stop(name string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	cmd, ok := m.Processes[name]
 	// We don't mind stopping a process that doesn't exist.
 	if !ok {
