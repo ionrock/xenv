@@ -81,10 +81,10 @@ Here is an example:
 # syntax. This format is similar to consul-template.
 - template:
     template: foo.conf.tmpl
-	target: /etc/foo.conf
-	owner: nobody
-	group: nobody
-	mode: 0600
+    target: /etc/foo.conf
+    owner: nobody
+    group: nobody
+    mode: 0600
 
 - task:
   name: start-envoy
