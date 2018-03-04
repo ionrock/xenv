@@ -108,3 +108,50 @@ Here is an example:
 The actual command can be called with `xenv --config env.yml -- mysvc
 start` in an init script, container `CMD`, CI pipeline or
 orchestration system of choice.
+
+### In Development
+
+When in development it is helpful to use xenv in your build
+targets. Here is an example `Makefile` that uses xenv to the `GOPATH`
+is configured correctly.
+
+```
+ENV=dev
+XENV=xenv -c $(ENV).yml --
+
+test:
+	$(XENV) go test .
+
+build:
+	$(XENV) go build .
+
+deploy:
+	$(XENV) bin/deploy.sh
+
+run: build
+	$(XENV) ./myapp
+```
+
+In this example, the `deploy.sh` might call an ansible playbook or
+kubectl command to deploy a release. The configuration for the release
+can be included in the respective `ENV` YAML. A production deployment
+can be done with `make -e ENV=production deploy` and it uses a
+consistent pattern.
+
+Similarly, if we deploy using a container, we can include xenv and use
+the same mechansim.
+
+```
+FROM alpine
+
+# Install our app
+ADD build/myapp /usr/bin/myapp
+
+# Copy over config
+ADD env.yml /etc/myapp/xenv.yml
+
+ENTRYPOINT ["xenv", "-c", "/etc/myapp/xenv.yml", "--"]
+CMD ["/usr/bin/myapp"]
+```
+
+The same can happen in a CI pipeline.
