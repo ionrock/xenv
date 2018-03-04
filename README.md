@@ -5,17 +5,43 @@
 [![GoDoc](https://godoc.org/github.com/ionrock/xenv?status.svg)](https://godoc.org/github.com/ionrock/xenv)
 
 
-Xenv provides an executable environment make using configuration
-consistent between development, CI/CD and production. Often times when
-we start working on a project we need to establish some basic
-requirements such as environment variables and standard processes that
-need to be run. These requirements are often duplicated in CI/CD and
-again in production. This is an error prone process that is difficult
-to debug during deployment and when there is a problem.
+Xenv provides an executable environment that makes using configuration
+consistent between development, CI/CD and production.
+
+There is a common pattern that emerges when running applications.
+
+ 1. Configuration data is defined
+ 2. Configuration data is transformed and formatted
+ 3. Configuration data is applied to run (or restart) the application
+
+For example, in Chef, you might define a set of attributes as your
+configuration data, manipulate that data and write some configuration
+files, and finally start your application or restart it when some new
+data requires doing so.
+
+[Confd](http://www.confd.io) and
+[consul-template](https://github.com/hashicorp/consul-template) is
+ another example where data is defined and stored in a key/value
+ store, templates are written and the applications are restarted when
+ necessary to get new configuration.
+
+Where Xenv improves on these patterns is by providing a generic
+mechanism that is not dependent on a specific configuration management
+system (chef, puppet, ansible), key value store (etcd, consul) or
+platform (kubernetes, mesos). Instead xenv makes it possible to create
+interfaces that successfully hide the platform requirements in order
+to simply the development and deployment process.
 
 Xenv solves these sorts of issues by providing a dynamic, yet
-consistent means of managing environment variables, starting
-sidecar / helper processes or performing small pre/post tasks.
+consistent means of:
+
+ - managing configuration data through environment variables and/or
+   templates
+ - stopping the process if configuration data changes (allowing k8s or
+   systemd to restart the process)
+ - pre/post tasks to implement service discovery, start sidecar
+   processes, etc.
+
 
 ## Usage
 
@@ -33,19 +59,7 @@ environment. In production we need a few things:
  - A configuration file and/or environment variables to turn on
    features and set functionality.
 
- - Standardized logging for sending logs to a centralized collector or
-   local syslog.
-
  - Registration with a service discovery system or DNS.
-
-The `xenv` executable allows you to consider all these sorts of
-details when starting the process as opposed to depending on
-configuration management or an orchestration system to provide the
-necessary functionality. The benefit here is that you can begin to
-test these variable conditions during development, encapsulate
-assumptions and reliably debug the functionality because it is the
-same code and not a feature of an upstream system like Kubernetes, CI
-or a provisioned host.
 
 Here is an example:
 ```yaml
@@ -56,10 +70,11 @@ Here is an example:
     # Set a single value
     foo: bar
 
-    # Set a value to the result of a script. This doesn't use a shell!
+    # Set a value to the result of a script.
     baz: '`cat baz.json | jq -r .baz`'
 
-# Gather more environment data using a script that outputs JSON or YAML
+# Gather more environment data using a script that outputs JSON or
+# YAML. A good example would be pulling secrets/certs from a secret store.
 - envscript: 'curl http://httpbin.org/ip'
 
 # We can use the environment and write templates using Go's template
@@ -71,7 +86,13 @@ Here is an example:
 	group: nobody
 	mode: 0600
 
-# Call `xenv --config env.yml -- mysvc start` to run the command
+- task:
+  name: start-envoy
+  cmd: systemd-run --unit=myapp-envoy --property Restart=always -- envoy
+
+- task:
+  name: register-service
+  cmd: svc-register.sh
 
 # Anything defined in `post` will be called after the command exits,
 # no matter the exit code.
@@ -80,6 +101,10 @@ Here is an example:
   # We can run commands after the process exits such as cleaning up
   # secret files or unregistering from service discovery.
   - task:
-      name: remove-config
-      cmd: rm /etc/foo.conf
+      name: stop-envoy
+      cmd: systemctl stop myapp-envoy.service
 ```
+
+The actual command can be called with `xenv --config env.yml -- mysvc
+start` in an init script, container `CMD`, CI pipeline or
+orchestration system of choice.
