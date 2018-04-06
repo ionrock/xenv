@@ -10,6 +10,9 @@ test: dep
 build: dep $(SOURCES)
 	go build ./cmd/xenv
 
+install: dep $(SOURCES)
+	go install ./cmd/xenv
+
 example: build
 	./xenv --debug --config examples/config.yml examples/web-server
 
