@@ -209,7 +209,7 @@ func (e *Environment) ConfigHandler(cfg *XeConfig) error {
 
 	case cfg.Template != nil && !e.DataOnly:
 		cfg.Template.Env = e.Config.Data
-		err := cfg.Template.Execute()
+		err := cfg.Template.Execute(e.ConfigDir)
 		if err != nil {
 			return err
 		}
@@ -345,6 +345,11 @@ func (e *Environment) Main(parts []string) (err error) {
 		return nil
 	}
 
+	// replace any replacements
+	for i := range parts {
+		parts[i] = os.Expand(parts[i], e.Config.GetConfig)
+	}
+
 	log.Infof("Running command: %s", strings.Join(parts, " "))
 
 	cmd := kexec.Command(parts[0])
@@ -352,6 +357,8 @@ func (e *Environment) Main(parts []string) (err error) {
 		cmd.Args = append(cmd.Args, parts[1:]...)
 	}
 	cmd.Env = e.Config.ToEnv()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	// Start our process and listen for signals
 	done := make(chan error)

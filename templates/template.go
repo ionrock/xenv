@@ -22,16 +22,34 @@ type Renderer struct {
 	Env      map[string]string
 }
 
+func makeAbs(root, path string) (string, error) {
+	if !filepath.IsAbs(path) {
+		return filepath.Join(root, path), nil
+	}
+	return filepath.Abs(path)
+}
+
 // Execute renders the template to the specified target.
-func (conf *Renderer) Execute() error {
-	fh, err := os.Create(conf.Target)
+func (conf *Renderer) Execute(dir string) error {
+
+	target, err := makeAbs(dir, conf.Target)
+	if err != nil {
+		return err
+	}
+
+	fh, err := os.Create(target)
 	if err != nil {
 		return err
 	}
 
 	defer fh.Close()
 
-	err = ApplyTemplate(conf.Template, fh, conf.Env)
+	tmpl, err := makeAbs(dir, conf.Template)
+	if err != nil {
+		return err
+	}
+
+	err = ApplyTemplate(tmpl, fh, conf.Env)
 	if err != nil {
 		return err
 	}
@@ -48,11 +66,6 @@ func (conf *Renderer) Execute() error {
 // provided io.Writer adding the sprig helpers and using the provided env
 // for data.
 func ApplyTemplate(t string, fh io.Writer, env map[string]string) error {
-	// Find the abs path of the template
-	t, err := filepath.Abs(t)
-	if err != nil {
-		return err
-	}
 	name := filepath.Base(t)
 
 	// Parse the template adding our sprig helpers
